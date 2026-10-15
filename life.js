@@ -91,7 +91,7 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, cleanWorkshop, birdSheet, isWalkable, random = Math.random }) {
+  function createIslandLife({ ctx, original, mask, cleanWorkshop, birdSheet, validationArt, isWalkable, random = Math.random }) {
     const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
     nativeContext.drawImage(original, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
@@ -121,6 +121,12 @@
       m.scale(scaleX, scaleY); m.translate(-box.x, -box.y); m.filter = `blur(${blur}px)`; m.fillStyle = '#fff'; m.beginPath(); path(m, vertices); m.fill();
       g.globalCompositeOperation = 'destination-in'; g.drawImage(coverage, 0, 0);
       return { texture, box };
+    }
+    if (validationArt) {
+      // Replace furnishings only. The original roof, arched facade and island stay intact.
+      const replacement = softPatch([[264,954],[405,1021],[414,1147],[390,1178],[336,1202],[304,1187],[279,1208],[190,1169],[188,1088],[210,1082],[260,1052]], validationArt, 1.5);
+      const { texture, box } = replacement;
+      nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
     }
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
@@ -224,7 +230,9 @@
       {quad:[[893,873],[904,878],[904,887],[893,883]],kind:'bars',phase:6},
       {quad:[[832,1257],[867,1257],[868,1285],[831,1285]],kind:'graph',phase:1},
       {quad:[[771,1279],[803,1264],[803,1295],[770,1310]],kind:'bars',phase:3},
-      {quad:[[923,1273],[944,1286],[946,1306],[924,1293]],kind:'bars',phase:5}
+      {quad:[[923,1273],[944,1286],[946,1306],[924,1293]],kind:'bars',phase:5},
+      {quad:[[278,1008],[324,1025],[324,1072],[278,1055]],kind:'pcb',phase:0,occlusion:[[309,1047],[321,1051],[322,1070],[309,1065]]},
+      {quad:[[342,1033],[396,1052],[396,1093],[342,1074]],kind:'pass',phase:2}
     ];
     const display=surface(128,80),displayContext=display.getContext('2d');
     function drawScreen(screen,t) {
@@ -237,12 +245,32 @@
         g.beginPath();for(let x=0;x<=128;x+=2){const y=43+Math.sin(x*.09-phase*2)*13+Math.sin(x*.25+phase)*6;if(x)g.lineTo(x,y);else g.moveTo(x,y);}
         g.strokeStyle='#75eb9d';g.lineWidth=2;g.shadowColor='#62e8a0';g.shadowBlur=3;g.stroke();g.shadowBlur=0;
         const scan=(phase*23)%128;g.fillStyle='#b7ffcc50';g.fillRect(scan,0,1,80);
+      }else if(screen.kind==='pcb'||screen.kind==='pass'){
+        const boardWidth=screen.kind==='pass'?64:128;
+        g.fillStyle='#102a25';g.fillRect(0,0,128,80);
+        g.strokeStyle='#5ce29d';g.lineWidth=1.2;
+        for(let i=0;i<9;i++){
+          const x=8+i*(boardWidth-16)/9,y=10+(i*17)%56;
+          g.beginPath();g.moveTo(x,5);g.lineTo(x,y);g.lineTo(Math.min(boardWidth-5,x+10),y+10);g.lineTo(Math.min(boardWidth-5,x+10),75);g.stroke();
+          g.fillStyle='#f6d891';g.fillRect(x-1.5,y-1.5,3,3);
+        }
+        g.fillStyle='#172c29';g.fillRect(boardWidth*.32,27,boardWidth*.38,27);
+        g.strokeStyle='#a9f5be';g.strokeRect(boardWidth*.32,27,boardWidth*.38,27);
+        g.font='7px monospace';g.fillStyle='#c6ffd8';g.fillText('PCB',boardWidth*.37,44);
+        g.fillStyle='#baffd335';g.fillRect((phase*18)%boardWidth,0,2,80);
+        if(screen.kind==='pass'){
+          g.fillStyle='#10372f';g.fillRect(65,0,63,80);
+          g.font='bold 19px monospace';g.textAlign='center';g.fillStyle='#92fcae';g.fillText('PASS',96,45);
+          g.font='7px monospace';g.fillText('PCB CHECK',96,61);g.textAlign='start';
+        }
       }else{
         for(let row=0;row<6;row++){g.fillStyle=row%2?'#66c99b':'#85e6af';g.fillRect(8,9+row*11,35+(Math.sin(phase*.9+row*1.8)+1)*34,3);}
         for(let i=0;i<5;i++){g.fillStyle=Math.sin(phase*2+i)>0?'#b6f4c9':'#2f745c';g.fillRect(104,i*12+10,8,5);}
       }
       const [a,b,,d]=screen.quad;
-      ctx.save();ctx.transform((b[0]-a[0])/128,(b[1]-a[1])/128,(d[0]-a[0])/80,(d[1]-a[1])/80,a[0],a[1]);ctx.drawImage(display,0,0);ctx.restore();
+      ctx.save();
+      if(screen.occlusion){ctx.beginPath();path(ctx,screen.quad);path(ctx,screen.occlusion);ctx.clip('evenodd');}
+      ctx.transform((b[0]-a[0])/128,(b[1]-a[1])/128,(d[0]-a[0])/80,(d[1]-a[1])/80,a[0],a[1]);ctx.drawImage(display,0,0);ctx.restore();
     }
     function drawInteriors(t) {
       for(const {texture,box} of robotPatches) ctx.drawImage(texture,box.x,box.y,box.w,box.h);

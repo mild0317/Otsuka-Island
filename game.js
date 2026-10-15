@@ -8,7 +8,7 @@
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
-  const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), cleanWorkshop = new Image(), birdSheet = new Image();
+  const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), cleanWorkshop = new Image(), birdSheet = new Image(), validationArt = new Image();
   let life;
   const camera = { x: W / 2, y: H / 2, zoom: 1, scale: 1, follow: false };
   const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0 };
@@ -17,6 +17,12 @@
   const pointers = new Map();
   let gesture = null;
   let selectedBuilding = null;
+  let pendingRoom = null, entry = null;
+  const roomExperience = new IslandRooms({ onClose(key) {
+    entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
+    status(`已走出${places[key].name}`); $('#wave').disabled = false;
+    document.querySelector(`[data-place="${key}"]`).focus({ preventScroll: true });
+  } });
   let previewHour = null, timeStamp = -1;
   const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   let lighting = { hour: 12, minute: 0, second: 0, shadowX: 0, shadowY: 20, length: 1, opacity: .14 };
@@ -45,14 +51,14 @@
   const areas = [
     { name: '研究室前庭', anchor: 2, poly: [[373, 671], [393, 661], [421, 679], [448, 691], [436, 706], [403, 694], [383, 684]] },
     { name: '工坊前石板廣場', anchor: 15, poly: [[657, 1046], [739, 1058], [822, 1041], [847, 1063], [744, 1091], [663, 1071]] },
-    { name: '圖書室前庭', anchor: 22, poly: [[304, 1200], [348, 1199], [385, 1204], [439, 1226], [449, 1260], [397, 1292], [342, 1272], [306, 1245], [284, 1225]] },
-    { name: '生態艙前廣場', anchor: 31, poly: [[552, 1514], [598, 1493], [644, 1497], [687, 1487], [723, 1499], [745, 1526], [718, 1549], [641, 1572], [592, 1553]] }
+    { name: '驗証工作室前庭', anchor: 22, poly: [[304, 1200], [348, 1199], [385, 1204], [439, 1226], [449, 1260], [397, 1292], [342, 1272], [306, 1245], [284, 1225]] },
+    { name: '模擬實驗室前廣場', anchor: 31, poly: [[552, 1514], [598, 1493], [644, 1497], [687, 1487], [723, 1499], [745, 1526], [718, 1549], [641, 1572], [592, 1553]] }
   ];
   const places = {
-    clock: { name: '時鐘研究室', node: 0, hit: [[546, 78], [550, 111], [578, 126], [607, 177], [621, 192], [643, 210], [649, 232], [647, 348], [662, 368], [696, 421], [698, 583], [681, 605], [558, 654], [415, 605], [396, 472], [393, 420], [433, 367], [445, 354], [441, 225], [459, 214], [451, 199], [461, 173], [478, 194], [514, 135], [535, 119], [542, 111]] },
-    workshop: { name: '發明工坊', node: 15, hit: [[593, 804], [831, 645], [1008, 760], [1031, 795], [1027, 827], [1016, 824], [1027, 981], [978, 1018], [843, 1076], [616, 965], [619, 899], [604, 906], [601, 824]] },
-    library: { name: '雲端圖書室', node: 24, hit: [[106, 985], [170, 858], [434, 985], [431, 1015], [417, 1011], [421, 1150], [390, 1180], [277, 1223], [115, 1150], [114, 1020], [103, 1020]] },
-    lab: { name: '玻璃生態艙', node: 33, hit: [[691, 1279], [707, 1230], [739, 1178], [802, 1147], [851, 1135], [856, 1114], [865, 1135], [917, 1154], [977, 1191], [1014, 1249], [1035, 1302], [1027, 1457], [974, 1490], [891, 1503], [788, 1490], [725, 1470], [696, 1438]] }
+    clock: { name: '設計工作室', node: 0, door: P(487, 591), hit: [[546, 78], [550, 111], [578, 126], [607, 177], [621, 192], [643, 210], [649, 232], [647, 348], [662, 368], [696, 421], [698, 583], [681, 605], [558, 654], [415, 605], [396, 472], [393, 420], [433, 367], [445, 354], [441, 225], [459, 214], [451, 199], [461, 173], [478, 194], [514, 135], [535, 119], [542, 111]] },
+    workshop: { name: '製作工坊', node: 15, door: P(797, 1000), hit: [[593, 804], [831, 645], [1008, 760], [1031, 795], [1027, 827], [1016, 824], [1027, 981], [978, 1018], [843, 1076], [616, 965], [619, 899], [604, 906], [601, 824]] },
+    library: { name: '驗証工作室', node: 24, door: P(293, 1159), hit: [[106, 985], [170, 858], [434, 985], [431, 1015], [417, 1011], [421, 1150], [390, 1180], [277, 1223], [115, 1150], [114, 1020], [103, 1020]] },
+    lab: { name: '模擬實驗室', node: 33, door: P(777, 1432), hit: [[691, 1279], [707, 1230], [739, 1178], [802, 1147], [851, 1135], [856, 1114], [865, 1135], [917, 1154], [977, 1191], [1014, 1249], [1035, 1302], [1027, 1457], [974, 1490], [891, 1503], [788, 1490], [725, 1470], [696, 1438]] }
   };
   const adjacency = nodes.map(() => []);
   links.forEach(([a, b]) => {
@@ -120,14 +126,15 @@
     $('#status-dot').style.background = moving ? '#bd704d' : '#6d8a69';
   }
   function goTo(target) {
-    if (!ready) return;
-    if (distance(actor, target.point) < 3) { greet(); return; }
-    actor.route = findPath(actor, target);
-    actor.destination = target.name;
+    if (!ready || roomExperience.key) return;
+    entry = null; pendingRoom = target.key || null;
     selectedBuilding = target.key || null;
+    actor.route = []; actor.destination = target.name;
+    document.querySelectorAll('.place').forEach(b => b.classList.toggle('active', b.dataset.place === target.key));
+    if (distance(actor, target.point) < 3) { if (target.key) beginEntry(target.key); else greet(); return; }
+    actor.route = findPath(actor, target);
     actor.wave = 0; actor.idle = 0; pendingGreeting = false;
     marker = { ...target.point, time: clock };
-    document.querySelectorAll('.place').forEach(b => b.classList.toggle('active', b.dataset.place === target.key));
     status(`正在走向${target.name}`, true);
     $('#wave').disabled = false;
   }
@@ -137,7 +144,7 @@
     toast(`一起去${place.name}吧！`);
   }
   function greet() {
-    if (!ready || actor.wave) return;
+    if (!ready || actor.wave || entry || roomExperience.key) return;
     if (actor.route.length) { pendingGreeting = true; toast('等博士走到目的地，再和你打招呼！'); return; }
     if (!motionEnabled) setMotion(true);
     actor.wave = 3.2; actor.idle = 0; actor.nextWave = rand(8, 14);
@@ -218,6 +225,7 @@
   $('#wave').addEventListener('click', greet);
   function setMotion(enabled) {
     motionEnabled = enabled;
+    roomExperience.setMotion(enabled);
     $('#motion-toggle').setAttribute('aria-pressed', String(enabled));
     $('#motion-toggle').textContent = enabled ? '動態 開' : '動態 暫停';
   }
@@ -226,6 +234,7 @@
   $('#live-time').addEventListener('click', () => { previewHour = null; timeStamp = -1; updateLighting(); });
   document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
   document.addEventListener('keydown', event => {
+    if (roomExperience.key) return;
     if (event.ctrlKey || event.metaKey || event.altKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     if (event.key === '+' || event.key === '=') zoomBy(1.25);
     if (event.key === '-') zoomBy(.8);
@@ -372,7 +381,8 @@
     ctx.drawImage(mesh.canvas, mesh.origin.x, mesh.origin.y);
   }
   function drawDoctor() {
-    const moving = actor.route.length > 0;
+    if (roomExperience.key) return;
+    const moving = actor.route.length > 0 || !!entry;
     const stride = Math.sin(actor.phase), gait = actor.gait;
     const perspective = .84 + (actor.y / H) * .22;
     const size = 155 * perspective / 660;
@@ -387,7 +397,12 @@
     }
     // The brief asks for a visible turn: blend the width during the initial change of heading.
     const turnWidth = 1 - Math.sin(actor.turn * Math.PI) * .16;
-    ctx.save(); ctx.translate(actor.x, actor.y);
+    const into = entry ? smooth(entry.progress) : 0;
+    const door = entry ? places[entry.key].door : actor;
+    ctx.save();
+    ctx.globalAlpha = 1 - smooth((into - .55) / .45);
+    ctx.translate(actor.x + (door.x - actor.x) * into, actor.y + (door.y - actor.y) * into);
+    ctx.scale(1 - into * .22, 1 - into * .22);
     ctx.fillStyle = '#263b3438'; ctx.beginPath(); ctx.ellipse(0, -1, 30 * perspective, 9 * perspective, -.12, 0, Math.PI * 2); ctx.fill();
     ctx.scale(size * mirror * turnWidth, size);
     ctx.translate(-view.cx, -view.foot);
@@ -419,9 +434,27 @@
       ctx.fillStyle = '#44634b'; ctx.fillText('嗨，你好呀！', actor.x, actor.y - 174); ctx.restore();
     }
   }
+  function beginEntry(key) {
+    pendingRoom = null; pendingGreeting = false; actor.route = []; actor.wave = 0; actor.idle = 0;
+    const door = places[key].door;
+    actor.facing = actor.heading = Math.atan2(door.y-actor.y, door.x-actor.x);
+    entry = { key, progress: 0 }; marker = null;
+    status(`正在走進${places[key].name}`, true); $('#wave').disabled = true;
+  }
   function update(dt) {
     updateLighting();
     life.update(animationTime, actor);
+    if (roomExperience.key) return;
+    if (entry) {
+      entry.progress = Math.min(1, entry.progress + dt / 1.05);
+      actor.phase += dt * 9; actor.gait = 1;
+      if (entry.progress === 1) {
+        const key = entry.key; entry = null; actor.gait = 0;
+        roomExperience.open(key); status(`正在${places[key].name}內探索`);
+        $('#toast').classList.remove('show');
+      }
+      return;
+    }
     const moving = actor.route.length > 0;
     actor.gait += ((moving ? 1 : 0) - actor.gait) * Math.min(1, dt * 10);
     actor.turn = Math.max(0, actor.turn - dt * 3.5);
@@ -438,7 +471,7 @@
         const step = Math.min(budget, d);
         const next = P(actor.x + (goal.x - actor.x) * step / d, actor.y + (goal.y - actor.y) * step / d);
         if (!ground(next, 22)) {
-          actor.route = []; marker = null; status('在安全的石板路上休息'); toast('這裡是路的邊緣，換一個安全的目的地吧。'); break;
+          actor.route = []; pendingRoom = null; marker = null; status('在安全的石板路上休息'); toast('這裡是路的邊緣，換一個安全的目的地吧。'); break;
         }
         actor.x = next.x; actor.y = next.y;
         actor.phase += step * .095; budget -= step;
@@ -446,6 +479,7 @@
       }
       if (!actor.route.length) {
         marker = null; actor.idle = 0; actor.nextWave = rand(3.5, 6);
+        if (pendingRoom) { beginEntry(pendingRoom); return; }
         status(`已抵達${actor.destination}`); toast(`到了！在${actor.destination}休息一下。`);
         if (pendingGreeting) { pendingGreeting = false; greet(); }
       }
@@ -606,10 +640,11 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(cleanWorkshop, 'assets/workshop-clean.png'), load(birdSheet, 'assets/sparrow-states.png')]).then(() => {
+  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(cleanWorkshop, 'assets/workshop-clean.png'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg')]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, cleanWorkshop, birdSheet, isWalkable: p => !!ground(p, 22) });
+    life = createIslandLife({ ctx, original: island, mask: islandMask, cleanWorkshop, birdSheet, validationArt, isWalkable: p => !!ground(p, 22) });
+    roomExperience.setCharacter(sprites);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {
     $('#loading').innerHTML = '<p>圖片讀取失敗。請確認 HTML 與圖片保留在同一個資料夾。</p>';
@@ -618,6 +653,7 @@
   requestAnimationFrame(frame);
   // A read-only snapshot helps verify routing and idle behavior without altering play.
   window.islandGame = Object.freeze({
+    roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
     getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
     isWalkable: p => !!ground(p, 22),
