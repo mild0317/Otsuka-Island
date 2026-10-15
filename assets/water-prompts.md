@@ -1,0 +1,14 @@
+# 水流素材生成記錄
+
+工具：內建 imagegen。原圖及舊版素材保持不變；遊戲僅在水域使用清理後的底圖。
+
+## assets/island-water-clean.png
+
+Use case: precise-object-edit. Edit target is the transparent floating island image assets/island-cutout.png.
+Make a very localized clean animation background plate. Remove every STATIC white foam ball, white bubble, white splash, and white spray at the feet of ALL THREE waterfalls and in their blue pools. These look like white cloud-like balls in the water. Replace those white foam areas with continuous unobstructed deep teal-blue water matching the adjacent pool water. Also simplify the waterfall surfaces to smooth shaded teal-blue water without painted white streaks or static highlights. Retain the precise shapes, mouths, flow channels, edges, shading and perspective of every waterfall and pool. The blue waterfall and pool water must remain fully opaque.
+STRICT INVARIANTS: keep ALL land, stones, cliffs, plants, roots, buildings, furniture, stairs, bridges, ground, trees and their positions PIXEL-ALIGNED and unchanged. Keep same full image framing, dimensions and tall aspect ratio, and existing transparent background. Do not add any splashes or bubbles or clouds or new objects. No overall restyling. This is a clean plate so the game can render a SINGLE coherent animated water and spray layer instead of doubling static and animated splashes.
+
+## assets/water-impact-frames.png
+
+Use case: stylized-concept. Asset type: transparent animated waterfall impact foam sprite sheet for a miniature 3D clay diorama browser game.
+Create exactly EIGHT sequential animation frames in a strict FOUR COLUMNS by TWO ROWS equal-cell grid. Transparent background, no labels or borders. Each square cell is identically aligned with the same horizontal ground-plane baseline at 68 percent of cell height and same center. All eight frames depict successive phases of ONE small continuous waterfall hitting a pool, without drawing the falling waterfall or the pool itself. Only the low, wide, compact off-white pale cyan foamy churning splash at the impact and tiny delicate translucent mist droplets. Oblique 3/4 view, an oval horizontal footprint. Foam should be irregular water turbulence with fine soft scalloped edges, NOT round cotton balls, NOT chunky spherical bubbles. No concentric rings, no lines or graphic symbols, no floor, no blue rectangle, no cloud backdrop. Soft shaded 3D toy diorama rendering matching the provided island, naturally lit top-left. Tiny fine droplets rise and dissolve, while the low foam churn changes shape frame-to-frame, with frame 8 matching frame 1 for a seamless loop. Keep the footprint, view, lighting and scale consistent across all 8 frames. All sprites fully contained within their cells, generous empty transparent padding, no overlapping cells. Wide 2:1 overall canvas.

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f0ece5">
+  <meta name="description" content="和塚博士一起，漫步雲端的浮空研究島。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2329483e'/%3E%3Ctext x='32' y='47' text-anchor='middle' font-family='Georgia' font-size='48' fill='%23fffaf0'%3EO%3C/text%3E%3C/svg%3E">
+  <title>Otsuka Island｜塚博士的浮空島</title>
+  <link rel="stylesheet" href="styles.css?v=6">
+  <script src="life.js?v=6" defer></script>
+  <script src="game.js?v=6" defer></script>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="./" aria-label="Otsuka Island 首頁"><span class="brand-mark">O<span>✦</span></span><span>OTSUKA ISLAND<small>塚博士的浮空島</small></span></a>
+    <div class="header-right"><span class="live-dot"></span><span>雲端散步中</span><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 06</span></div>
+  </header>
+
+  <main class="experience">
+    <canvas id="world" tabindex="0" aria-label="浮空島互動地圖。點擊地面或建築讓博士走過去，拖曳移動視野，滾輪縮放。也可使用地點按鈕。"></canvas>
+    <div id="loading" class="loading"><span class="loader"></span><p>正在準備浮空島…</p></div>
+
+    <section class="intro">
+      <p class="eyebrow"><span></span> A LITTLE WORLD ABOVE THE CLOUDS</p>
+      <h1>在雲端，<br>慢慢走。</h1>
+      <p class="intro-copy">一座浮空島，一位好奇的博士。<br>點一個地方，讓探索開始。</p>
+      <div class="intro-rule"></div>
+      <p class="small-note"><span class="click-icon">↖</span> 點選地面或建築<br><span class="indent">塚博士會自己走過去</span></p>
+    </section>
+
+    <aside class="destinations" aria-label="島嶼地點">
+      <div class="section-label"><span>島嶼手記</span><span>04 PLACES</span></div>
+      <button class="place" data-place="clock"><span class="place-icon">◷</span><span><strong>時鐘研究室</strong><small>讓靈感準時發生</small></span><span class="place-arrow">↗</span></button>
+      <button class="place" data-place="workshop"><span class="place-icon">⚒</span><span><strong>發明工坊</strong><small>下一個點子，就在這裡</small></span><span class="place-arrow">↗</span></button>
+      <button class="place" data-place="library"><span class="place-icon">▤</span><span><strong>雲端圖書室</strong><small>翻開一本新的冒險</small></span><span class="place-arrow">↗</span></button>
+      <button class="place" data-place="lab"><span class="place-icon">⌬</span><span><strong>玻璃生態艙</strong><small>收藏一點未來的可能</small></span><span class="place-arrow">↗</span></button>
+      <p class="destination-footnote">跟著石階，把小島走成日常。</p>
+    </aside>
+
+    <section class="light-panel" aria-label="島上時間與光影">
+      <div class="light-heading"><span>島上光影</span><time id="island-time">--:--</time><button id="live-time" title="回到台灣即時時間">即時</button></div>
+      <input id="light-time" type="range" min="0" max="23.99" step="0.05" aria-label="預覽一天的光影時間">
+      <div class="light-labels"><span>晨光</span><span id="time-mode">台灣時間</span><span>暮色</span></div>
+    </section>
+
+    <section class="doctor-card" aria-label="塚博士狀態">
+      <div class="portrait"><img src="Otsuka-Docter.jpg" alt="藍色頭髮、穿白袍的塚博士"></div>
+      <div class="doctor-info"><div class="doctor-name">塚博士 <span>YOUR COMPANION</span></div><p><i id="status-dot"></i><span id="status">正在享受島上的微風</span></p></div>
+      <button id="wave" class="wave-button" title="和博士打招呼（G）" aria-label="和博士揮手打招呼">✋</button>
+    </section>
+
+    <div class="map-tools" aria-label="地圖控制">
+      <button id="zoom-in" title="放大（+）" aria-label="放大">＋</button>
+      <span id="zoom-value">100%</span>
+      <button id="zoom-out" title="縮小（−）" aria-label="縮小">−</button>
+      <span class="tool-divider"></span>
+      <button id="fit" title="完整小島（R）" aria-label="重設地圖視野">⛶</button>
+      <button id="follow" title="跟隨博士" aria-label="跟隨博士" aria-pressed="false">◎</button>
+    </div>
+
+    <div class="bottom-hint"><span class="hint-dot"></span><span id="hint">點選散步</span><span class="hint-separator">/</span><span>拖曳探索</span><span class="hint-separator">/</span><span id="zoom-hint">滾輪縮放</span></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <footer><span>EXPLORATION STARTS WITH A LITTLE STEP.</span><span>在浮空島，每一步都有新發現。<span class="footer-star">✦</span></span></footer>
+</body>
+</html>
