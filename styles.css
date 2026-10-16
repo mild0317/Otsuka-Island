@@ -60,3 +60,5 @@ button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inher
 @media(max-width:760px){.room-topic-list{padding:0 15px}.room-topic-list .room-stations{flex-direction:column}.room-stations button{font-size:12px}.room-object .object-core{stroke-width:2.6px}.room-object .object-mist{stroke-width:6px}.room-object .object-halo{stroke-width:11px}.room-detail h3{font-size:16px}}
 @media(max-width:760px){.toast{max-width:calc(100vw - 180px)}}
 @media(prefers-reduced-motion:reduce){.toast{transition:none}.loader{animation-duration:2s}}
+
+.room-header-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.room-sound{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;border:1px solid #cdd5c7;border-radius:50%;background:#fffdf6;color:#476a59;font-size:20px}.room-sound[aria-pressed=true]{background:#e9f0e2;border-color:#8da586}.room-heading{min-width:0}@media(max-width:360px){.room-header{padding:12px 10px;gap:5px}#room-title{font-size:17px}.room-close{gap:4px;padding:6px 8px}.room-header-actions{gap:4px}#room-en{letter-spacing:.5px}}

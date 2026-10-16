@@ -86,7 +86,7 @@
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
-  const detailImages = Object.fromEntries(['design','workshop','verification','simulation'].map(key => [key, new Image()]));
+  const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
   let life;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
@@ -97,13 +97,19 @@
   let gesture = null;
   let selectedBuilding = null, hoverBuilding = null, selectionTime = 0;
   let pendingRoom = null, entry = null;
-  const roomExperience = new IslandRooms({ onClose(key) {
-    entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
-    status(`已走出${places[key].name}`); $('#wave').disabled = false;
-    $('#ui-toggle').focus({ preventScroll: true });
-  } });
+  const roomExperience = new IslandRooms({
+    onOpen(key){islandAudio.enterRoom(key);},
+    onSound(type,key,index){islandAudio.roomEvent(type,key,index);},
+    onSoundToggle(){islandAudio.setEnabled(!islandAudio.enabled);},
+    onClose(key) {
+      islandAudio.leaveRoom();
+      entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
+      status(`已走出${places[key].name}`); $('#wave').disabled = false;
+      $('#ui-toggle').focus({ preventScroll: true });
+    }
+  });
   const islandAudio = new IslandAudio({
-    onChange(enabled){const button=$('#sound-toggle');button.setAttribute('aria-pressed',String(enabled));button.textContent=enabled?'♫':'♪';button.title=enabled?'關閉背景音樂與鳥聲':'開啟背景音樂與鳥聲';button.setAttribute('aria-label',button.title);},
+    onChange(enabled){const button=$('#sound-toggle');button.setAttribute('aria-pressed',String(enabled));button.textContent=enabled?'♫':'♪';button.title=enabled?'關閉音樂與音效':'開啟音樂與音效';button.setAttribute('aria-label',button.title);roomExperience.setAudioEnabled(enabled);},
     onError(message){toast(message);}
   });
   $('#sound-toggle').addEventListener('click',()=>islandAudio.setEnabled(!islandAudio.enabled));
@@ -786,7 +792,7 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, 'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
     life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });

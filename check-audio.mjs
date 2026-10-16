@@ -69,10 +69,22 @@ try {
   await touch(soundPoint);await delay(250);
   check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="suspended"'),'Audio control silences music and birds');
   await touch(soundPoint);await delay(150);
+  await evaluate('__qaAudio.enterRoom("lab");__qaAudio.roomEvent("run","lab")');
+  check(await evaluate('islandGame.audioState().activeRoomVoices>0'),'Room effects start alongside enabled background music');
+  const roomBefore=await evaluate('islandGame.audioState().roomEffectsPlayed');
+  await evaluate('__qaAudio.roomEvent("step","workshop")');
+  check(await evaluate('islandGame.audioState().roomEffectsPlayed')===roomBefore,'Stale events from a different room cannot play');
+  await evaluate('__qaAudio.roomEvent("cancel","lab")');
+  check(await evaluate('islandGame.audioState().activeRoomVoices===0'),'Cancelling a room workflow stops its scheduled effects');
+  await evaluate('__qaAudio.roomEvent("run","lab")');
   await evaluate('Object.defineProperty(document,"hidden",{configurable:true,value:true});document.dispatchEvent(new Event("visibilitychange"))');await delay(120);
-  check(await evaluate('islandGame.audioState().contextState==="suspended"'),'Hidden-page handler suspends audio');
+  check(await evaluate('islandGame.audioState().contextState==="suspended"&&islandGame.audioState().activeRoomVoices===0'),'Hidden-page handler suspends audio and cancels room effects');
+  const hiddenBefore=await evaluate('islandGame.audioState().roomEffectsPlayed');
+  await evaluate('__qaAudio.roomEvent("complete","lab")');
+  check(await evaluate('islandGame.audioState().roomEffectsPlayed')===hiddenBefore,'Hidden room completion does not queue an obsolete sound');
   await evaluate('delete document.hidden;document.dispatchEvent(new Event("visibilitychange"))');await delay(150);
   check(await evaluate('islandGame.audioState().contextState==="running"'),'Returning-page handler resumes enabled audio');
+  await evaluate('__qaAudio.leaveRoom()');
   await touch(soundPoint);await delay(150);
   check(errors.length===0,'No browser errors: '+JSON.stringify(errors));await call('Browser.close');
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}

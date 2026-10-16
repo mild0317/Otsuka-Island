@@ -44,7 +44,8 @@
   };
 
   class IslandRooms {
-    constructor({ onClose } = {}) {
+    constructor({ onClose, onOpen, onSound, onSoundToggle } = {}) {
+      this.onOpen=onOpen;this.onSound=onSound;this.onSoundToggle=onSoundToggle;
       this.onClose = onClose; this.key = null; this.timer = null; this.run = 'idle'; this.step = 0; this.activeStation = null;
       const dialog = document.createElement('dialog');
       dialog.id = 'room-dialog'; dialog.className = 'room-dialog'; dialog.setAttribute('aria-labelledby', 'room-title');
@@ -52,7 +53,7 @@
         <article class="room-shell">
           <header class="room-header">
             <div class="room-heading"><div><p id="room-en"></p><h2 id="room-title"></h2></div></div>
-            <button class="room-close" aria-label="關閉房間，返回浮空島">返回小島 <span aria-hidden="true">×</span></button>
+            <div class="room-header-actions"><button class="room-sound" aria-pressed="false" aria-label="開啟音樂與音效" title="開啟音樂與音效">♪</button><button class="room-close" aria-label="關閉房間，返回浮空島">返回小島 <span aria-hidden="true">×</span></button></div>
           </header>
           <div class="room-scroll">
             <div class="room-stage" tabindex="0" aria-label="房間場景，可使用放大按鈕查看細節">
@@ -77,6 +78,7 @@
           </div>
         </article>`;
       document.body.append(dialog); this.dialog = dialog;
+      this.$('.room-sound').addEventListener('click',()=>this.onSoundToggle?.());
       this.$('.room-close').addEventListener('click', () => this.close());
       dialog.addEventListener('click', e => { if (e.target === dialog) this.close(); });
       dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(); });
@@ -128,9 +130,11 @@
       const image = this.$('#room-art'); image.alt = `${room.name}：${room.intro}`; image.src = room.image;
       if (image.complete && image.naturalWidth) this.imageStatus('');
       this.dialog.showModal(); this.$('.room-scroll').scrollTop = 0; document.body.classList.add('inside-room');
+      this.onOpen?.(key);
       this.$('.room-close').focus({ preventScroll: true });
     }
     resetDemo() {
+      if(this.run==='running')this.onSound?.('cancel',this.key);
       clearTimeout(this.timer); this.timer = null; this.run = 'idle'; this.step = 0;
       this.dialog.dataset.run = 'idle'; this.$('.room-action').disabled = false;
       this.$('.room-action').textContent = rooms[this.key].action; this.$('.room-result').textContent = '準備就緒';
@@ -140,6 +144,7 @@
       this.$('.room-content').hidden = true; this.$('.room-topic-list').open = false;
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', 'false'));
       this.$('.room-scroll').scrollTop = 0;
+      if(restoreFocus)this.onSound?.('back',this.key);
       if (restoreFocus && previous !== null) this.$(`.room-object[data-station="${previous}"]`).focus({ preventScroll: true });
     }
     selectStation(index) {
@@ -150,22 +155,27 @@
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
       this.$('.room-content').scrollIntoView({ block: 'nearest' });
       this.$('.room-detail h3').focus({ preventScroll: true });
+      this.onSound?.('select',this.key,index);
     }
     simulate() {
       if (!this.key || this.activeStation === null || this.run === 'running') return;
       this.run = 'running'; this.dialog.dataset.run = 'running'; this.$('.room-action').disabled = true; this.step = 0;
+      this.onSound?.('run',this.key);
       const advance = () => {
         if (!this.key) return;
         const room = rooms[this.key];
         if (this.step < room.steps.length) {
+          if(this.step)this.onSound?.('step',this.key,this.step);
           this.$('.room-result').textContent = `${room.steps[this.step++]}…`; this.timer = setTimeout(advance, 800);
         } else {
           this.run = 'complete'; this.dialog.dataset.run = 'complete'; this.$('.room-result').textContent = room.result;
           this.$('.room-action').disabled = false; this.$('.room-action').textContent = '再體驗一次'; this.timer = null;
+          this.onSound?.('complete',this.key);
         }
       };
       advance();
     }
+    setAudioEnabled(enabled){const b=this.$('.room-sound');b.setAttribute('aria-pressed',String(enabled));b.textContent=enabled?'♫':'♪';b.title=enabled?'關閉音樂與音效':'開啟音樂與音效';b.setAttribute('aria-label',b.title);}
     setMotion(enabled) { this.dialog.classList.toggle('room-paused', !enabled); }
     close() {
       if (!this.key) return;

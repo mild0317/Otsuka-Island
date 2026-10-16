@@ -34,7 +34,7 @@ try {
   for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(100);}
   check(await evaluate('window.islandGame?.getState().ready'),'Full-screen scene and all local assets load');
   const textures=await evaluate('islandGame.sceneSnapshot()');
-  check(textures.detailTextures.length===4&&textures.detailTextures.every(t=>t.width>=1200&&t.height>=1200),'Four independently rendered high-detail interior textures load');
+  check(['design','workshop','verification','simulation','terrace'].every(key=>textures.detailTextures.some(t=>t.key===key&&t.width>=1200&&t.height>=1200)),'Four high-detail interiors and restored stone terrace load');
   check(textures.displayResolution.width===768&&textures.displayResolution.height===480,'Animated PCB screens retain high-resolution display buffers');
   const clickElement=async selector=>{const p=await evaluate('(()=>{const b=document.querySelector('+JSON.stringify(selector)+');b.scrollIntoView({block:"nearest"});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');await click(p.x,p.y)};
   for(const [w,h] of [[3840,2160],[1440,1000],[320,640],[390,844],[844,390]]){
