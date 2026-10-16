@@ -18,7 +18,7 @@
   let toastUntil = 0, marker = null, pendingGreeting = false, lastStatus = '';
   const pointers = new Map();
   let gesture = null;
-  let selectedBuilding = null, selectionTime = 0;
+  let selectedBuilding = null, hoverBuilding = null, selectionTime = 0;
   let pendingRoom = null, entry = null;
   const roomExperience = new IslandRooms({ onClose(key) {
     entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
@@ -193,6 +193,7 @@
   function localPoint(event) { const r = canvas.getBoundingClientRect(); return P(event.clientX - r.left, event.clientY - r.top); }
   canvas.addEventListener('pointerdown', event => {
     if (event.button !== 0 && event.pointerType === 'mouse') return;
+    hoverBuilding = null;
     canvas.setPointerCapture(event.pointerId); const p = localPoint(event); pointers.set(event.pointerId, p);
     if (pointers.size === 1) gesture = { start: p, last: p, moved: false, pinched: false };
     if (pointers.size === 2) { const [a, b] = [...pointers.values()]; gesture.pinched = true; gesture.pinchDistance = distance(a, b); }
@@ -200,7 +201,11 @@
   canvas.addEventListener('pointermove', event => {
     const p = localPoint(event);
     if (!pointers.has(event.pointerId)) {
-      if (ready) canvas.style.cursor = distance(worldPoint(p.x, p.y), actor) < 75 ? 'pointer' : resolveTarget(worldPoint(p.x, p.y)) ? 'crosshair' : 'grab';
+      if (ready) {
+        const target = resolveTarget(worldPoint(p.x, p.y));
+        hoverBuilding = target?.key || null;
+        canvas.style.cursor = hoverBuilding || distance(worldPoint(p.x, p.y), actor) < 75 ? 'pointer' : target ? 'crosshair' : 'grab';
+      }
       return;
     }
     pointers.set(event.pointerId, p);
@@ -232,6 +237,7 @@
       gesture = null; canvas.classList.remove('dragging');
     }
   }
+  canvas.addEventListener('pointerleave', () => { hoverBuilding = null; });
   canvas.addEventListener('pointerup', endPointer); canvas.addEventListener('pointercancel', endPointer);
   canvas.addEventListener('wheel', event => { event.preventDefault(); zoomBy(Math.exp(-event.deltaY * .0014), localPoint(event)); }, { passive: false });
   $('#zoom-in').addEventListener('click', () => zoomBy(1.25));
@@ -624,38 +630,18 @@
     }
   }
   function drawBuildingMist() {
-    if (!selectedBuilding) return;
-    const place = places[selectedBuilding], outline = place.hit;
-    if (!place.rim) {
-      const rim = new Path2D();
-      outline.forEach((p, i) => {
-        const before = outline[(i + outline.length - 1) % outline.length], after = outline[(i + 1) % outline.length];
-        const incoming = Math.hypot(p[0]-before[0],p[1]-before[1]), outgoing = Math.hypot(after[0]-p[0],after[1]-p[1]);
-        const radius = Math.min(6, incoming*.22, outgoing*.22);
-        const a = P(p[0]+(before[0]-p[0])*radius/incoming,p[1]+(before[1]-p[1])*radius/incoming);
-        const b = P(p[0]+(after[0]-p[0])*radius/outgoing,p[1]+(after[1]-p[1])*radius/outgoing);
-        if (!i) rim.moveTo(a.x,a.y); else rim.lineTo(a.x,a.y);
-        rim.quadraticCurveTo(p[0],p[1],b.x,b.y);
-      });
-      rim.closePath(); place.rim = rim;
-    }
-    const fade = smooth((clock-selectionTime)/.3), breath = .88 + Math.sin(animationTime*1.2)*.08;
-    const line = clamp(1.1/camera.scale,.55,4);
-    const ys = outline.map(p=>p[1]), xs = outline.map(p=>p[0]);
-    const sheen = ctx.createLinearGradient(Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys));
-    sheen.addColorStop(0,'#fffef8f5'); sheen.addColorStop(.45,'#fff8e8cc'); sheen.addColorStop(1,'#ecf4e6aa');
-    ctx.save(); ctx.globalAlpha = fade*breath; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    // One attached rim with a soft halo keeps the miniature architecture readable.
-    ctx.lineWidth = line*3.2; ctx.strokeStyle = '#fff8e82b';
-    ctx.shadowColor = '#fff8e8'; ctx.shadowBlur = 9; ctx.stroke(place.rim);
-    ctx.shadowColor = '#27433744'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1;
-    ctx.lineWidth = line; ctx.strokeStyle = sheen; ctx.stroke(place.rim);
-    ctx.shadowOffsetY = 0; ctx.shadowBlur = 0;
-    const entrance = nodes[place.node];
-    const glow = ctx.createRadialGradient(entrance.x,entrance.y,3,entrance.x,entrance.y,45);
-    glow.addColorStop(0,'#fff4d537'); glow.addColorStop(1,'#fff4d500');
-    ctx.translate(entrance.x,entrance.y); ctx.scale(1,.36); ctx.fillStyle=glow;
-    ctx.translate(-entrance.x,-entrance.y); ctx.beginPath(); ctx.arc(entrance.x,entrance.y,45,0,Math.PI*2); ctx.fill();
+    const key = hoverBuilding || selectedBuilding;
+    if (!key) return;
+    const place = places[key];
+    place.rim ||= new Path2D(IslandOutlines.buildings[key]);
+    const fade = hoverBuilding ? 1 : smooth((clock-selectionTime)/.2);
+    const line = 3.6 / camera.scale;
+    ctx.save(); ctx.globalAlpha = fade * (.96 + Math.sin(animationTime*1.2)*.04);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.shadowColor = '#ffffff';
+    // Independent illustration contours keep the white core attached to the artwork.
+    ctx.lineWidth = line*4.5; ctx.strokeStyle = '#ffffff24'; ctx.shadowBlur = 20; ctx.stroke(place.rim);
+    ctx.lineWidth = line*2.1; ctx.strokeStyle = '#ffffff72'; ctx.shadowBlur = 10; ctx.stroke(place.rim);
+    ctx.lineWidth = line; ctx.strokeStyle = '#ffffff'; ctx.shadowBlur = 4; ctx.stroke(place.rim);
     ctx.restore();
   }
   function frame(time) {

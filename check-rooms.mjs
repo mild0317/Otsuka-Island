@@ -61,6 +61,31 @@ try {
     for(let i=0;i<80;i++){if(await evaluate('islandGame.roomState().imageReady'))break;await delay(100);}
     check(await evaluate('islandGame.roomState().imageReady'),'Room illustration loaded: '+key);
     check(await evaluate('document.querySelector("#room-title").textContent')===names[key],'Room title matches the selected building');
+    check(await evaluate('islandGame.roomState().topic===null&&document.querySelector(".room-content").hidden'),'Entering room shows scene before a topic');
+    check(await evaluate('!document.querySelector(".room-number,.room-hotspots")&&[...document.querySelectorAll(".room-stations button")].every(b=>!/^\\d/.test(b.textContent))'),'No numbered room markers');
+    check(await evaluate('document.querySelectorAll(".room-object").length===3'),'Three outlined equipment objects');
+    await screenshot('room-'+key+'-overview-v12.png');
+    if(key==='clock'){
+      await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+      await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
+      await delay(150);await screenshot('room-design-overview-mobile-v12.png');
+      const p=await evaluate('(()=>{const r=document.querySelector(".room-object[data-station=\\"0\\"]").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+      await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:0}]});
+      await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      check(await evaluate('islandGame.roomState().topic===0'),'Phone tap on breadboard outline opens topic without a numbered tag');
+      await evaluate('document.querySelector(".room-action").click();document.querySelector(".room-back").click()');await delay(900);
+      check(await evaluate('islandGame.roomState().topic===null&&islandGame.roomState().run==="idle"'),'Returning to room cancels a running topic demo');
+      await call('Emulation.setTouchEmulationEnabled',{enabled:false});
+      await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+      await evaluate('document.querySelector(".room-object[data-station=\\"1\\"]").focus()');
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+      await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+      check(await evaluate('islandGame.roomState().topic===1'),'Keyboard Enter opens the focused equipment topic');
+      await clickUI('.room-back');
+      check(await evaluate('document.activeElement.matches(".room-object[data-station=\\"1\\"]")'),'Returning restores focus to the selected object');
+    }
+    await clickUI('.room-object[data-station="0"]');
+    check(await evaluate('islandGame.roomState().topic===0&&!document.querySelector(".room-content").hidden'),'Clicking the illustrated object opens its topic');
     const copy=await evaluate('document.querySelector(".room-content").textContent');
     check(copy.includes('PCB')&&!/機械手臂|鐘樓機構|加工與列印|機械零件/.test(copy),'Room equipment describes EDA and PCB: '+key);
     if(key==='clock'){
@@ -73,20 +98,22 @@ try {
       check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PCB")'),'Confirmed circuit prototype leads to PCB design');
       await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(200);
       check(await evaluate('(()=>{const r=document.querySelector("#room-dialog").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()'),'Breadboard workbench room fits the phone viewport');
-      await screenshot('room-design-breadboard-mobile-v9.png');
+      await screenshot('room-design-topic-mobile-v12.png');
       await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
     images.add(await evaluate('document.querySelector("#room-art").src'));
-    await evaluate('window.__qaFast=false');await screenshot('room-'+key+'-desktop-v9.png');
-    await evaluate('document.querySelectorAll(".room-stations [data-station]")[1].click()');
-    check(await evaluate('document.querySelectorAll(".room-hotspots [data-station]")[1].getAttribute("aria-pressed")==="true"'),'Equipment buttons and scene hotspots select together');
+    await evaluate('window.__qaFast=false');await screenshot('room-'+key+'-topic-desktop-v12.png');
+    await clickUI('.room-back');
+    check(await evaluate('islandGame.roomState().topic===null&&document.querySelector(".room-content").hidden&&islandGame.roomState().run==="idle"'),'Back returns to clean room overview');
+    await clickUI('.room-object[data-station="1"]');
+    check(await evaluate('document.querySelectorAll(".room-objects [data-station]")[1].getAttribute("aria-pressed")==="true"'),'Object outline and topic selection stay in sync');
     if(key==='library'){
       await evaluate('document.querySelector(".room-action").click()');await delay(2600);
       check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PASS")'),'PCB validation demo reaches PASS');
       for(const [w,h] of [[320,640],[390,844],[844,390]]){
         await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:true});await delay(200);
         check(await evaluate('(()=>{const d=document.querySelector("#room-dialog"),r=d.getBoundingClientRect(),b=document.querySelector(".room-close").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth&&b.width>=44&&b.height>=44})()'),'Room fits mobile portrait/landscape '+w+'x'+h);
-        await screenshot('room-verification-mobile-'+w+'-v9.png');
+        await screenshot('room-verification-mobile-'+w+'-v12.png');
       }
       await evaluate('document.querySelector(".room-zoom").click()');
       check(await evaluate('document.querySelector(".room-stage").scrollWidth>document.querySelector(".room-stage").clientWidth'),'Zoomed room allows detail panning');
