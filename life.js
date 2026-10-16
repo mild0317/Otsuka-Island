@@ -91,7 +91,7 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, detailImages = {}, isWalkable, random = Math.random }) {
+  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, detailImages = {}, isWalkable, onBirdState, random = Math.random }) {
     const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
     nativeContext.drawImage(original, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
@@ -323,7 +323,7 @@
     }
     return {
       drawBase,drawWater,drawInteriors,drawBirds,
-      update(t,actor){time=t;birds.update(t,actor);},
+      update(t,actor){time=t;birds.update(t,actor);onBirdState?.(birds.birds,t);},
       snapshot(){return{resolution:{width:native.width,height:native.height},detailTextures:Object.entries(detailImages).map(([key,image])=>({key,width:image.width,height:image.height})),displayResolution:{width:display.width,height:display.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
       treeCoverage
     };

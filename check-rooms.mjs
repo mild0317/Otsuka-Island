@@ -56,7 +56,7 @@ try {
       if(!await evaluate('islandGame.isWalkable({x:'+s.actor.x+',y:'+s.actor.y+'})'))unsafe++;
       if(s.room.open)break;await delay(80);
     }
-    const s=await evaluate('islandGame.roomState()');check(s.open&&s.key===key,'Doctor enters correct room: '+key);
+    const s=await evaluate('islandGame.roomState()');check(s.open&&s.key===key,'Doctor enters correct room: '+key+(s.open?'':' '+JSON.stringify({room:s,actor:await evaluate('islandGame.getState()'),errors})));
     check(entering&&unsafe===0,'Entry transition follows a safe walking route: '+key);
     for(let i=0;i<80;i++){if(await evaluate('islandGame.roomState().imageReady'))break;await delay(100);}
     check(await evaluate('islandGame.roomState().imageReady'),'Room illustration loaded: '+key);

@@ -6,7 +6,7 @@
 
 ## 開啟測試
 
-直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、`outlines.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角只有「完整小島」與「工具」兩個按鈕；開啟工具後可看到「互動測試版 15」與動態開關。已開啟舊頁面時請按 Ctrl+F5 更新。
+直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、`outlines.js`、`audio.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角提供音符、「完整小島」與「工具」三個小按鈕；開啟工具後可看到「互動測試版 17」、音量與動態開關。已開啟舊頁面時請按 Ctrl+F5 更新。
 
 也可以在此資料夾執行 `node serve.mjs`，開啟 <http://127.0.0.1:4173>。
 
@@ -30,7 +30,13 @@ node serve.mjs --host 0.0.0.0
 
 ## 操作
 
-第十五版將博士主動／自動揮手時的文字氣泡改為 21 句隨機 EDA 招呼語，涵蓋 HyperLynx、PADS、Xpedition、proFPGA、GerbTool、Valor NPI、Valor PP，各三句。每輪洗牌後逐句使用，輪完才重新洗牌，且跨輪不連續重複。氣泡顯示約 5.5 秒，依手機／桌機／4K 視窗換行與限制位置；博士開始走路或進屋時收起。完整清單與產品定位參考見 [greetings-v15.md](greetings-v15.md)；修改句子可編輯 `game.js` 開頭的 `EDA_GREETINGS`。
+第十七版新增右下角音符開關。點一下開啟背景音樂與鳥聲，再點一下靜音；預設關閉。工具選單內可調整共同音量，預設 35%。`audio.js` 以 Web Audio 在本機合成慢節奏旋律／和聲及短鳥鳴，不載入外部音檔。只有已停棲的小鳥才會隨機叫，飛行不叫；動態暫停時不新增鳥鳴。切換到其他分頁會暫停音訊，回來後恢復已開啟的聲音。音樂可在房內繼續播放。
+
+招呼語亦擴充至 **56 句**，只有一個原始範例以 HI 開頭，其他使用提問、提醒、小知識與邀請。七個軟體主題先隨機輪一遍，各主題的八句也各自洗牌；連續兩次不談同一主題，全部 56 句使用後才會再次出現相同句子。最新完整清單見 [greetings-v17.md](greetings-v17.md)；內容集中在 `game.js` 的 `EDA_GREETING_TOPICS`。
+
+第十六版在滑鼠懸停或點選建築時，於屋頂上方顯示對應房名，與白光描邊同步。手機點建築也會顯示；名稱隨縮放及平移跟隨房子，靠近畫面邊緣會調整位置。點地面後取消選取，房內不顯示島上的房名標籤。未選取或懸停時保持隱藏。
+
+第十五版將博士主動／自動揮手時的文字氣泡改為 21 句隨機 EDA 招呼語，涵蓋 HyperLynx、PADS、Xpedition、proFPGA、GerbTool、Valor NPI、Valor PP，各三句。每輪洗牌後逐句使用，輪完才重新洗牌，且跨輪不連續重複。氣泡顯示約 5.5 秒，依手機／桌機／4K 視窗換行與限制位置；博士開始走路或進屋時收起。當時的清單與產品定位參考見 [greetings-v15.md](greetings-v15.md)，目前內容已由第十七版的 56 句取代。
 
 - 右下角 ☰：開啟／收起地點、縮放、跟隨、光影時間、揮手與動態控制。這些控制只在需要時顯示。
 - 右下角 ⛶ 或鍵盤 R：回到放大至視窗可容納範圍的完整小島。
@@ -89,6 +95,8 @@ node serve.mjs --host 0.0.0.0
 
 ## 驗證
 
+`node check-greetings.mjs` 測試實際招呼語選擇函式，包含隨機邊界值與共 1680 次選取，檢查七個主題交錯、每 56 句不重複及僅一句 HI 開頭。`node check-audio.mjs` 使用本機 Chrome 檢查房名懸停／點選、手機音符按鈕、實際音訊訊號、停棲才叫、音量、靜音與分頁暫停／恢復。瀏覽器測試請依序執行，避免共用 Chrome 偵錯連接埠。
+
 第十四版另修正正面走路擺臂時袖子與軀幹過渡過陡造成的細小透明孔洞。`check-preview.mjs` 在安全廣場明確取樣前、側、後姿勢，並在手機手勢測試前取消進屋，避免房間視窗干擾測試。
 
 先執行 `node serve.mjs`，另一個終端機執行 `node check-rooms.mjs`。測試使用本機 Chrome，檢查四間房間的安全行走、進門轉場、設備選取、PASS 示意、離開與手機 320px／390px／橫式佈局。截圖寫入被 Git 忽略的 `.preview/`。可透過 `ISLAND_TEST_URL` 環境變數改測 GitHub Pages 網址。
@@ -97,4 +105,4 @@ node serve.mjs --host 0.0.0.0
 
 ## GitHub Pages 更新
 
-GitHub Pages 使用 `main` 分支根目錄發布。更新 `index.html`、`styles.css`、`game.js`、`life.js`、`rooms.js`、`outlines.js` 或使用中的圖片後，提交並推送至 `main`，GitHub 會自動更新網站。所有素材均使用相對路徑。`.nojekyll` 讓網站直接以靜態檔案提供服務；`.preview/` 是本機測試資料，不會上傳。
+GitHub Pages 使用 `main` 分支根目錄發布。更新 `index.html`、`styles.css`、`game.js`、`life.js`、`rooms.js`、`outlines.js`、`audio.js` 或使用中的圖片後，提交並推送至 `main`，GitHub 會自動更新網站。所有素材均使用相對路徑。`.nojekyll` 讓網站直接以靜態檔案提供服務；`.preview/` 是本機測試資料，不會上傳。

@@ -4,31 +4,83 @@
   const ctx = canvas.getContext('2d');
   const $ = (selector) => document.querySelector(selector);
   const W = 1143, H = 2048;
+  const BUILDING_NAME_ANCHORS = {clock:[546,78],workshop:[833,645],library:[186,854],lab:[856,1114]};
+  let buildingNameMetrics = null;
   const WALK_SPEED = 200;
-  const EDA_GREETINGS = Object.freeze([
-    'HI~你知道HyperLynx是什麼嗎？',
-    '走線互相干擾？讓 HyperLynx 幫忙看看！',
-    '電源穩不穩？一起用 HyperLynx 分析吧！',
-    'HI~一起用 PADS，把電路想法變成 PCB！',
-    '原理圖畫好了嗎？到 PADS 接著佈局吧！',
-    '元件怎麼擺、線怎麼走？一起探索 PADS！',
-    'HI~複雜的 PCB，想試試 Xpedition 嗎？',
-    '走線限制好多？來看看 Xpedition 怎麼管理！',
-    '多人一起設計 PCB？認識一下 Xpedition！',
-    'HI~你知道 proFPGA 的原型驗証能做什麼嗎？',
-    '晶片還沒做好，也能先用 proFPGA 驗証喔！',
-    '軟硬體能配合嗎？用 proFPGA 提早試試！',
-    'HI~Gerber 輸出後，用 GerbTool 再檢查吧！',
-    '銅箔、鑽孔對齊了嗎？用 GerbTool 看看！',
-    '怕漏接或短路？用 GerbTool 比對網表吧！',
-    'HI~交給工廠前，先用 Valor NPI 做 DFM！',
-    '設計也好製造嗎？用 Valor NPI 查查！',
-    '元件間距夠嗎？讓 Valor NPI 幫忙檢查！',
-    'HI~從 PCB 設計到產線，認識一下 Valor PP！',
-    'SMT 程式怎麼準備？一起看看 Valor PP！',
-    'BOM、組裝資料對上了嗎？用 Valor PP 看看！'
+  const EDA_GREETING_TOPICS = Object.freeze([
+    {product:'HyperLynx',lines:[
+      'HI~你知道HyperLynx是什麼嗎？',
+      '走線靠太近，會不會互相干擾呢？',
+      '電源穩不穩？一起用 HyperLynx 分析吧！',
+      '眼圖張得夠開嗎？一起看看訊號品質。',
+      '訊號到了接收端，還保有原來的樣子嗎？',
+      '先模擬一下，再決定這條走線怎麼改。',
+      '今天要研究串擾，還是電源雜訊？',
+      '這次的高速訊號挑戰，交給 HyperLynx 探索吧！'
+    ]},
+    {product:'PADS',lines:[
+      '一起用 PADS，把電路想法變成 PCB！',
+      '原理圖畫好了嗎？接著來安排元件的位置吧。',
+      '元件怎麼擺、線怎麼走？一起探索 PADS。',
+      '這塊板子的空間，要怎麼分配才順手呢？',
+      '封裝與腳位對上了嗎？先確認，再繼續。',
+      '把走線規則先設定好，設計時更有方向。',
+      '今天想從電路圖開始，還是繼續 PCB 佈局？',
+      '小小的電路點子，也能從 PADS 開始成形。'
+    ]},
+    {product:'Xpedition',lines:[
+      '複雜的 PCB，想試試 Xpedition 嗎？',
+      '走線限制好多？來看看 Xpedition 怎麼管理。',
+      '多人一起設計 PCB，要怎麼保持步調一致？',
+      '原理圖和佈局的變更，都同步好了嗎？',
+      '讓設計規則跟著走線，一起把細節顧好。',
+      '這麼多層板，要怎麼安排訊號與電源呢？',
+      '團隊協作的 PCB 挑戰，要不要交給 Xpedition 試試？',
+      '別急著拉線，先把這塊板的設計限制整理好。'
+    ]},
+    {product:'proFPGA',lines:[
+      '你知道 proFPGA 的原型驗証能做什麼嗎？',
+      '晶片還沒做好，也能先用 proFPGA 驗証喔！',
+      '軟硬體能配合嗎？提早試試，心裡更有底。',
+      '要不要把設計放到 FPGA 原型平台上跑跑看？',
+      '驅動程式準備好了嗎？來做早期軟體驗証吧。',
+      '先把軟硬體一起跑起來，再找整合的小問題。',
+      '這個系統的功能，想先用 proFPGA 驗証嗎？',
+      '流片之前，還有哪些使用情境想先測試呢？'
+    ]},
+    {product:'GerbTool',lines:[
+      'Gerber 輸出後，用 GerbTool 再檢查一次吧。',
+      '銅箔、鑽孔對齊了嗎？一起看看製造資料。',
+      '怕漏接或短路？用 GerbTool 比對網表吧！',
+      '每一層的板圖，都和預期的一樣嗎？',
+      '送板前，把線寬與間距再檢查一遍。',
+      '這一版改了哪裡？來比對前後的板圖吧。',
+      '鑽孔資料也要顧，別只看漂亮的銅箔走線。',
+      'GerbTool 準備好了，來看看輸出資料吧！'
+    ]},
+    {product:'Valor NPI',lines:[
+      '交給工廠前，先用 Valor NPI 做 DFM！',
+      '設計畫得出來，也容易製造嗎？',
+      '元件間距夠嗎？讓 Valor NPI 幫忙檢查。',
+      '板廠的製程能力，和這次的設計條件對得上嗎？',
+      '把製造問題提早找出來，少一點來回修改。',
+      '焊點和組裝空間，也值得在設計時先看看。',
+      '今天一起用 Valor NPI，找出製造的小風險吧。',
+      '準備量產之前，還有哪些 DFM 問題要確認？'
+    ]},
+    {product:'Valor PP',lines:[
+      '從 PCB 設計到產線，認識一下 Valor PP！',
+      'SMT 程式怎麼準備？一起看看 Valor PP。',
+      'BOM 和組裝資料，都對上了嗎？',
+      '貼片、檢測和測試，生產資料準備齊了嗎？',
+      '這張板子的作業指導書，要怎麼整理更清楚？',
+      '換一條產線，製程資料也要一起準備好。',
+      '用 Valor PP，把組裝與測試的準備接起來。',
+      '設計交接完成了，接下來一起準備生產吧！'
+    ]}
   ]);
-  let greetingBag = [], previousGreeting = -1;
+  let topicBag = [], previousTopic = -1;
+  const phraseBags = EDA_GREETING_TOPICS.map(()=>[]), previousPhrases = EDA_GREETING_TOPICS.map(()=>-1);
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
@@ -50,6 +102,12 @@
     status(`已走出${places[key].name}`); $('#wave').disabled = false;
     $('#ui-toggle').focus({ preventScroll: true });
   } });
+  const islandAudio = new IslandAudio({
+    onChange(enabled){const button=$('#sound-toggle');button.setAttribute('aria-pressed',String(enabled));button.textContent=enabled?'♫':'♪';button.title=enabled?'關閉背景音樂與鳥聲':'開啟背景音樂與鳥聲';button.setAttribute('aria-label',button.title);},
+    onError(message){toast(message);}
+  });
+  $('#sound-toggle').addEventListener('click',()=>islandAudio.setEnabled(!islandAudio.enabled));
+  $('#sound-volume').addEventListener('input',event=>{const value=Number(event.target.value);islandAudio.setVolume(value/100);$('#sound-volume-value').textContent=`${value}%`;});
   let previewHour = null, timeStamp = -1;
   const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   let lighting = { hour: 12, minute: 0, second: 0, shadowX: 0, shadowY: 20, length: 1, opacity: .14 };
@@ -177,20 +235,29 @@
     if (actor.route.length) { pendingGreeting = true; toast('等博士走到目的地，再和你打招呼！'); return; }
     if (!motionEnabled) setMotion(true);
     actor.wave = 3.2; actor.idle = 0; actor.nextWave = rand(8, 14);
-    if (!greetingBag.length) {
-      greetingBag = EDA_GREETINGS.map((_,i) => i);
-      for (let i=greetingBag.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [greetingBag[i],greetingBag[j]]=[greetingBag[j],greetingBag[i]]; }
-      if (greetingBag.at(-1) === previousGreeting) [greetingBag[0],greetingBag[greetingBag.length-1]]=[greetingBag.at(-1),greetingBag[0]];
-    }
-    previousGreeting = greetingBag.pop(); actor.speech = EDA_GREETINGS[previousGreeting]; actor.speechUntil = clock + 5.5;
+    actor.speech=nextGreeting(); actor.speechUntil = clock + 5.5;
     $('#doctor-speech').textContent = actor.speech;
     status(actor.speech); $('#wave').disabled = true;
   }
   function clearSpeech() { actor.speech = ''; actor.speechUntil = 0; $('#doctor-speech').textContent = ''; }
+  function nextGreeting(){
+    if(!topicBag.length)topicBag=shuffleIndices(EDA_GREETING_TOPICS.length,previousTopic);
+    const topic=topicBag.pop(),group=EDA_GREETING_TOPICS[topic];
+    if(!phraseBags[topic].length)phraseBags[topic]=shuffleIndices(group.lines.length,previousPhrases[topic]);
+    const phrase=phraseBags[topic].pop();previousTopic=topic;previousPhrases[topic]=phrase;
+    return group.lines[phrase];
+  }
+  function shuffleIndices(length,previous){
+    const bag=Array.from({length},(_,i)=>i);
+    for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}
+    if(bag.length>1&&bag.at(-1)===previous)[bag[0],bag[bag.length-1]]=[bag.at(-1),bag[0]];
+    return bag;
+  }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
     width = rect.width; height = rect.height;
+    buildingNameMetrics = null;
     // Match the physical display, with a bounded buffer on very large displays.
     const dpr = Math.min(devicePixelRatio || 1, 3, Math.sqrt(16777216 / (width * height)));
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
@@ -289,7 +356,7 @@
   $('#motion-toggle').addEventListener('click', () => setMotion(!motionEnabled));
   $('#light-time').addEventListener('input', event => { previewHour = Number(event.target.value); timeStamp = -1; updateLighting(); });
   $('#live-time').addEventListener('click', () => { previewHour = null; timeStamp = -1; updateLighting(); });
-  document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
+  document.querySelectorAll('.place[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('#island-controls').hidden) { setControls(false, true); return; }
     if (roomExperience.key) return;
@@ -593,6 +660,7 @@
     }
     life.drawBirds(animationTime);
     drawDoctor(); ctx.restore();
+    updateBuildingName();
   }
   function drawLivingIsland() {
     life.drawBase(animationTime);
@@ -682,6 +750,19 @@
       ctx.drawImage(cloud, x - c.w / 2, y - h / 2, c.w, h); ctx.restore();
     }
   }
+  function updateBuildingName() {
+    const key=hoverBuilding||selectedBuilding, label=$('#building-name');
+    if(!key||roomExperience.key){label.hidden=true;return;}
+    const [wx,wy]=BUILDING_NAME_ANCHORS[key],center=screenCenter();
+    const anchorX=(wx-camera.x)*camera.scale+center.x,anchorY=(wy-camera.y)*camera.scale+center.y;
+    if(anchorX < -80 || anchorX > width+80 || anchorY < -80 || anchorY > height+80){label.hidden=true;return;}
+    if(label.dataset.building!==key){label.textContent=places[key].name;label.dataset.building=key;buildingNameMetrics=null;}
+    label.hidden=false;
+    buildingNameMetrics ||= {width:label.offsetWidth,height:label.offsetHeight};
+    const x=clamp(anchorX,12+buildingNameMetrics.width/2,width-12-buildingNameMetrics.width/2);
+    const y=clamp(anchorY-10,10+buildingNameMetrics.height,height-12);
+    label.style.left=`${x}px`;label.style.top=`${y}px`;
+  }
   function drawBuildingMist() {
     const key = hoverBuilding || selectedBuilding;
     if (!key) return;
@@ -708,7 +789,7 @@
   Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, 'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22) });
+    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
     roomExperience.setCharacter(sprites);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {
@@ -718,9 +799,10 @@
   requestAnimationFrame(frame);
   // A read-only snapshot helps verify routing and idle behavior without altering play.
   window.islandGame = Object.freeze({
+    audioState: () => islandAudio.snapshot(),
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
-    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
+    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
     isWalkable: p => !!ground(p, 22),
     sceneSnapshot: () => life?.snapshot(),
