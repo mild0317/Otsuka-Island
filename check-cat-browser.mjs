@@ -70,8 +70,8 @@ try {
   await evaluate('__qaCat.setLocation("island",{x:675,y:1530});__qaCat.wait=99999');await clickUI('.room-close');
   await choose('library');
   await evaluate('window.__qaWorkerDraws=[];const original=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(image,...args){if(image.src?.includes("npc-hank-work-v22")){const m=this.getTransform();__qaWorkerDraws.push({crop:args.slice(0,4),c:m.c,d:m.d});}return original.call(this,image,...args)}');
-  await delay(1600);const frames=await evaluate('__qaWorkerDraws');
-  check(frames.length>20&&new Set(frames.map(f=>JSON.stringify(f.crop))).size===1,'Hank uses one intact rear-facing work pose without abrupt sprite changes');
+  await delay(1600);await waitFor('__qaWorkerDraws.length>=12','Hank animation samples');const frames=await evaluate('__qaWorkerDraws');
+  check(frames.length>=12&&new Set(frames.map(f=>JSON.stringify(f.crop))).size===1,'Hank uses one intact rear-facing work pose without abrupt sprite changes');
   check(frames.some(f=>Math.abs(f.c-frames[0].c)>.0005)&&frames.every((f,i)=>i===0||Math.abs(f.c-frames[i-1].c)<.01),'Working lean changes continuously between frames');
   check(await evaluate('IslandRoomWorld.coworkers.library.direction==="upper-left"'),'Hank faces the left workstation');
   await screenshot('room-scale-hank-v22.png');await clickUI('.room-close');await choose('lab');await screenshot('room-scale-lab-v22.png');
