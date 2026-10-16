@@ -6,7 +6,7 @@
 
 ## 開啟測試
 
-直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、兩張原圖，以及完整 `assets/` 資料夾。畫面右上角應顯示「動態 開」，桌機版本標示為「互動測試版 08」。已開啟舊頁面時請按 Ctrl+F5 更新。
+直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、兩張原圖，以及完整 `assets/` 資料夾。畫面右上角應顯示「動態 開」，桌機版本標示為「互動測試版 09」。已開啟舊頁面時請按 Ctrl+F5 更新。
 
 也可以在此資料夾執行 `node serve.mjs`，開啟 <http://127.0.0.1:4173>。
 
@@ -40,7 +40,7 @@ node serve.mjs --host 0.0.0.0
 
 | 建築 | 房間 | 室內配置 |
 | --- | --- | --- |
-| 鐘樓 | 設計工作室 | 電路原理圖、PCB 佈局佈線、IC 封裝與板圖展示 |
+| 鐘樓 | 設計工作室 | 平面電子工作台、麵包板、單芯跳線、散落零件、電錶、烙鐵與 EDA 螢幕 |
 | 開放式木樑磚屋 | 製作工坊 | PCB 打樣、焊接、防靜電工作墊、元件料盤與電子檢視設備 |
 | 左側拱窗磚屋 | 驗証工作室 | 兩台 PCB 工作站、板圖規則檢查、PASS 結果、PCB 波形量測 |
 | 玻璃圓頂 | 模擬實驗室 | PCB 投影、訊號完整性眼圖、電源完整性與板件熱分布 |
@@ -68,6 +68,8 @@ node serve.mjs --host 0.0.0.0
 第七版的五張圖片與內建 imagegen 提示詞記錄於 `assets/room-prompts.md`。島上只合成第三棟的室內家具區，其餘建築、屋頂、窗戶與島嶼沿用原圖。`rooms.js` 管理房間對話視窗、設備介紹及流程示意。
 
 第八版新增 `assets/room-design-v8.jpg`、`assets/room-workshop-v8.jpg`、`assets/room-simulation-v8.jpg` 及 `assets/eda-island-v8.jpg`，內建 imagegen 提示詞記錄於 `assets/eda-prompts-v8.md`。驗証室沿用已有兩台 PCB／PASS 電腦的第七版圖片。舊機械場景素材保留為版本記錄，不再載入。
+
+第九版設計室將傾斜繪圖板改為平面電子工作台，桌上包含白色麵包板、單芯跳線、IC、LED、電阻、電容、電錶及烙鐵。右側保留 EDA 工作站。流程示意改為麵包板搭建電路、電錶量測與調整，再整理原理圖銜接 PCB 佈局。室內與島上的對應圖片為 `assets/room-design-v9.jpg`、`assets/design-island-v9.jpg`，內建 imagegen 提示詞記錄於 `assets/breadboard-prompts-v9.md`。
 
 ## 驗證
 

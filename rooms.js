@@ -2,13 +2,13 @@
   'use strict';
   const rooms = {
     clock: {
-      name: '設計工作室', en: 'EDA DESIGN STUDIO', number: '01', image: 'assets/room-design-v8.jpg', theme: 'blue',
-      intro: '從電路原理圖到 PCB 佈局，讓每一條連線都有清楚的起點。', action: '檢視 PCB 設計流程', result: '原理圖與 PCB 佈局已就緒',
-      steps: ['繪製電路原理圖', '配置元件與 PCB 走線', '檢視層疊與設計資料'],
+      name: '設計工作室', en: 'EDA DESIGN STUDIO', number: '01', image: 'assets/room-design-v9.jpg', theme: 'blue',
+      intro: '先在麵包板上搭起電路、量測與調整，再把想法帶進原理圖與 PCB 設計。', action: '體驗電路原型到 PCB', result: '電路原型確認，銜接 PCB 設計',
+      steps: ['麵包板搭建電路原型', '電錶量測與電路調整', '整理原理圖並進入 PCB 佈局'],
       stations: [
-        ['電路原理圖', '以 IC、電阻、電容與網路連線，表達電路的功能與連接關係。', 38, 55],
+        ['麵包板工作台', '白色麵包板接上單芯跳線、IC、LED、電阻與電容；桌邊散放電子零件、電錶與烙鐵，方便搭建及量測電路原型。', 35, 51],
         ['PCB 佈局佈線', '在 EDA 畫面中配置元件、規劃走線，並檢視焊盤、過孔與銅層。', 80, 53],
-        ['PCB 層疊與元件', '透過板圖、層疊資料與元件封裝，整理這塊 PCB 的設計內容。', 64, 20]
+        ['元件與電路資料', '對照電阻、電容、電晶體與 IC 資料，將麵包板確認過的連接方式整理到原理圖，再銜接 PCB 設計。', 64, 20]
       ]
     },
     workshop: {

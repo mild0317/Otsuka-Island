@@ -91,7 +91,7 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, isWalkable, random = Math.random }) {
+  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, isWalkable, random = Math.random }) {
     const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
     nativeContext.drawImage(original, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
@@ -139,6 +139,10 @@
         const { texture, box } = softPatch(vertices, edaArt, 1.5);
         nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
       }
+    }
+    if (designArt) {
+      const { texture, box } = softPatch([[431,462],[523,413],[526,478],[572,488],[580,513],[659,540],[670,585],[563,635],[424,582]], designArt, 1.5);
+      nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
     }
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
