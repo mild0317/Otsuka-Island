@@ -17,6 +17,7 @@
     constructor({ onClose, onOpen, onSound, onSoundToggle } = {}) {
       this.onOpen=onOpen;this.onSound=onSound;this.onSoundToggle=onSoundToggle;
       this.onClose = onClose; this.key = null; this.timer = null; this.run = 'idle'; this.step = 0; this.activeStation = null;
+      this.world=null;this.renderCharacter=null;this.motion=true;this.cat=null;
       const dialog = document.createElement('dialog');
       dialog.id = 'room-dialog'; dialog.className = 'room-dialog'; dialog.setAttribute('aria-labelledby', 'room-title');
       dialog.innerHTML = `
@@ -26,20 +27,21 @@
             <div class="room-header-actions"><button class="room-sound" aria-pressed="true" aria-label="關閉音樂與音效" title="關閉音樂與音效">♫</button><button class="room-close" aria-label="關閉房間，返回浮空島">返回小島 <span aria-hidden="true">×</span></button></div>
           </header>
           <div class="room-scroll">
-            <div class="room-stage" aria-label="房間場景，點選發光物件進入主題">
+            <div class="room-stage" tabindex="0" aria-label="房間地圖，點地板走動，點設備靠近探索">
               <div class="room-scene">
                 <img id="room-art" alt="" decoding="async">
                 <div class="room-light" aria-hidden="true"></div>
                 <svg class="room-objects" viewBox="0 0 1536 1024" aria-label="點選發光設備，進入主題"></svg>
-                <div class="room-doctor" aria-hidden="true"><canvas width="194" height="300"></canvas></div>
+                <canvas class="room-world" width="1536" height="1024" aria-hidden="true"></canvas>
               </div>
               <p class="room-image-status" role="status">正在準備房間…</p>
             </div>
-            <div class="room-scene-tools"><span><i></i> 點選發光物件，進入主題</span></div>
+            <div class="room-scene-tools"><span><i></i> 點地板走動 · 點設備靠近探索</span><span class="room-walk-status sr-only" role="status"></span></div>
             <details class="room-topic-list"><summary>主題清單</summary><nav class="room-stations" aria-label="房間主題"></nav></details>
+            <dialog class="room-topic-dialog" aria-labelledby="room-topic-title">
             <section class="room-content" hidden>
               <button class="room-back">← 返回房間</button>
-              <div class="room-detail" aria-live="polite"><h3 tabindex="-1"></h3><p></p></div>
+              <div class="room-detail" aria-live="polite"><h3 id="room-topic-title" tabindex="-1"></h3><p></p></div>
               <div class="topic-products" aria-label="對應軟體與原廠資料"></div>
               <div class="topic-main">
                 <div class="topic-explainer"><article><h4>你也遇過這些狀況嗎？</h4><p class="topic-challenge"></p></article><article><h4>我們可以一起看什麼？</h4><p class="topic-value"></p></article><p class="topic-bench" hidden></p><p class="topic-extension" hidden></p></div>
@@ -47,13 +49,28 @@
               </div>
               <section class="topic-prepare"><div><h4>下一步，一起看看你的 PCB</h4><p>先準備手邊已有的資料，讓討論更具體。</p><ul></ul><p class="topic-deliverable"></p></div><button class="topic-download">下載準備清單 ↓</button></section>
             </section>
+            </dialog>
           </div>
         </article>`;
       document.body.append(dialog); this.dialog = dialog;
       this.$('.room-sound').addEventListener('click',()=>this.onSoundToggle?.());
       this.$('.room-close').addEventListener('click', () => this.close());
-      dialog.addEventListener('click', e => { if (e.target === dialog) this.close(); });
-      dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(); });
+      dialog.addEventListener('cancel', e => { if(e.target!==dialog)return;e.preventDefault();if(this.world?.actor.route.length||this.world?.pendingStation!==null&&this.world?.pendingStation!==undefined){this.world.cancel();this.updateSelection();}else this.close(); });
+      const topic=this.$('.room-topic-dialog');
+      topic.addEventListener('cancel',e=>{e.preventDefault();e.stopPropagation();this.showRoom(true);});
+      topic.addEventListener('click',e=>{if(e.target===topic)this.showRoom(true);});
+      const scene=this.$('.room-scene');let down=null;
+      scene.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};});
+      scene.addEventListener('pointerup',e=>{
+        if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>10)return;down=null;
+        if(e.target.closest('.room-object')||!this.world||!this.snapshot().imageReady||this.activeStation!==null)return;
+        const r=scene.getBoundingClientRect(),p={x:(e.clientX-r.left)/r.width*1536,y:(e.clientY-r.top)/r.height*1024};
+        if(this.cat?.location===this.key&&Math.hypot(p.x-this.cat.x,p.y-this.cat.y)<50){this.cat.greet();return;}
+        if(this.world.walkTo(p)){this.updateSelection();this.$('.room-walk-status').textContent='塚博士正在移動';}
+      });
+      scene.addEventListener('pointercancel',()=>{down=null;});
+      this.$('.room-stage').addEventListener('keydown',e=>{const directions={ArrowLeft:[-65,0],ArrowRight:[65,0],ArrowUp:[0,-45],ArrowDown:[0,45]},d=directions[e.key];if(!d||!this.world||this.activeStation!==null)return;e.preventDefault();const a=this.world.actor;if(this.world.walkTo({x:a.x+d[0],y:a.y+d[1]}))this.updateSelection();});
+      new ResizeObserver(()=>this.resizeScene()).observe(this.$('.room-stage'));
       this.$('.room-action').addEventListener('click', () => this.simulate());
       this.$('.topic-download').addEventListener('click',()=>this.downloadBrief());
       this.$('.room-back').addEventListener('click', () => this.showRoom(true));
@@ -85,14 +102,16 @@
       a.href=url;a.download='otsuka-'+this.key+'-pcb-checklist.txt';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
     }
     imageStatus(text) { this.$('.room-image-status').textContent = text; this.$('.room-image-status').hidden = !text; }
-    setCharacter(sprite) {
-      const c = this.$('.room-doctor canvas'), g = c.getContext('2d');
-      g.clearRect(0, 0, c.width, c.height);
-      g.drawImage(sprite, 212 / 2048 * sprite.width, 0, 444 / 2048 * sprite.width, sprite.height, 0, 0, c.width, c.height);
-    }
+    setCharacterRenderer(renderer){this.renderCharacter=renderer;}
+    setCat(cat){this.cat=cat;}
+    setCoworkers(images){this.coworkerImages=images;}
+    resizeScene(){if(!this.key)return;const stage=this.$('.room-stage'),scene=this.$('.room-scene'),w=Math.min(stage.clientWidth,stage.clientHeight*1.5);scene.style.width=w+'px';scene.style.height=(w/1.5)+'px';this.world?.draw();}
+    update(dt){this.world?.update(dt,this.motion);}
+    updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation!==null||pending===Number(b.dataset.station))));}
     open(key) {
       const room = rooms[key]; if (!room || this.key) return;
       this.key = key; this.dialog.dataset.theme = room.theme;
+      this.world=new IslandRoomWorld.RoomWorld({key,canvas:this.$('.room-world'),art:this.$('#room-art'),renderCharacter:this.renderCharacter,cat:this.cat,coworkerImages:this.coworkerImages,onArrive:index=>this.showTopic(index)});
       this.$('#room-en').textContent = room.en; this.$('#room-title').textContent = room.name;
       this.renderTopic();
       this.$('.room-stations').replaceChildren(); this.$('.room-objects').replaceChildren();
@@ -106,7 +125,7 @@
         group.setAttribute('aria-label', `探索${name}`); group.setAttribute('aria-pressed', 'false');
         for (const layer of ['hit', 'halo', 'mist', 'core']) {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', IslandOutlines.rooms[key][i]); path.setAttribute('class', `object-${layer}`);
+          path.setAttribute('d', IslandOutlines.rooms[key][this.world.layout.equipment.outline]); path.setAttribute('class', `object-${layer}`);
           path.setAttribute('vector-effect', 'non-scaling-stroke'); group.append(path);
         }
         group.addEventListener('click', () => this.selectStation(i));
@@ -119,6 +138,7 @@
       const image = this.$('#room-art'); image.alt = `${room.name}：${room.lead}`; image.src = room.image;
       if (image.complete && image.naturalWidth) this.imageStatus('');
       this.dialog.showModal(); this.$('.room-scroll').scrollTop = 0; document.body.classList.add('inside-room');
+      this.resizeScene();
       this.onOpen?.(key);
       this.$('.room-close').focus({ preventScroll: true });
     }
@@ -132,6 +152,8 @@
     }
     showRoom(restoreFocus = false) {
       const previous = this.activeStation; this.resetDemo(); this.activeStation = null;
+      if(this.$('.room-topic-dialog').open)this.$('.room-topic-dialog').close();
+      if(this.world)this.world.topicOpen=false;
       this.$('.room-content').hidden = true; this.$('.room-topic-list').open = false;
       this.$('.room-stage').hidden=false;this.$('.room-scene-tools').hidden=false;this.$('.room-topic-list').hidden=false;
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', 'false'));
@@ -140,13 +162,16 @@
       if (restoreFocus && previous !== null) this.$(`.room-object[data-station="${previous}"]`).focus({ preventScroll: true });
     }
     selectStation(index) {
+      if(!this.world||!this.snapshot().imageReady||!rooms[this.key]?.stations[index])return;
+      if(this.world.visit(index)){this.updateSelection();this.$('.room-topic-list').open=false;this.$('.room-walk-status').textContent='塚博士正在走向設備';}
+    }
+    showTopic(index) {
       const station = rooms[this.key]?.stations[index];if(!station)return;
       this.resetDemo(); this.activeStation = index; this.$('.room-content').hidden = false;
       this.$('.room-topic-list').open = false;
-      this.$('.room-stage').hidden=true;this.$('.room-scene-tools').hidden=true;this.$('.room-topic-list').hidden=true;
       this.$('.room-detail h3').textContent = station[0]; this.$('.room-detail p').textContent = station[1];
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
-      this.$('.room-scroll').scrollTop=0;
+      this.$('.room-topic-dialog').showModal();this.$('.room-content').scrollTop=0;
       this.$('.room-detail h3').focus({ preventScroll: true });
       this.onSound?.('select',this.key,index);
     }
@@ -172,13 +197,15 @@
       advance();
     }
     setAudioEnabled(enabled){const b=this.$('.room-sound');b.setAttribute('aria-pressed',String(enabled));b.textContent=enabled?'♫':'♪';b.title=enabled?'關閉音樂與音效':'開啟音樂與音效';b.setAttribute('aria-label',b.title);}
-    setMotion(enabled) { this.dialog.classList.toggle('room-paused', !enabled); }
+    setMotion(enabled) { this.motion=enabled;this.dialog.classList.toggle('room-paused', !enabled); }
     close() {
       if (!this.key) return;
+      if(this.$('.room-topic-dialog').open)this.$('.room-topic-dialog').close();
+      this.world?.cancel();this.world=null;
       const key = this.key; clearTimeout(this.timer); this.timer = null; this.key = null; this.run = 'idle'; this.activeStation = null;
       this.dialog.close(); document.body.classList.remove('inside-room'); this.onClose?.(key);
     }
-    snapshot() { return { key: this.key, open: this.dialog.open, topic: this.activeStation, run: this.run, imageReady: this.$('#room-art').complete && this.$('#room-art').naturalWidth > 0 }; }
+    snapshot() { return { key: this.key, open: this.dialog.open, topic: this.activeStation, topicOpen:this.$('.room-topic-dialog').open,run: this.run, imageReady: this.$('#room-art').complete && this.$('#room-art').naturalWidth > 0,world:this.world?.snapshot()||null }; }
   }
 
   window.IslandRooms = IslandRooms;

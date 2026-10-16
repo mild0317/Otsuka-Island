@@ -1,0 +1,35 @@
+# 房間工作角色素材 v21
+
+使用內建 image_gen 製作，保留輸出透明通道。原始八視圖保留在工作區，未覆寫。
+
+| 角色 | 房間 | 正式素材 |
+| --- | --- | --- |
+| 小公主 | 設計工作室 | `npc-princess-work-v21.png` |
+| 安東尼 | 模擬實驗室 | `npc-anthony-work-v21.png` |
+| Hank | 驗証工作室 | `npc-hank-work-v21.png` |
+
+Hank 最終使用淺藍襯衫外搭白色博士服。安東尼採用第三格完整姿勢配合程式呼吸與工作側身，避免第一、二格交界截斷手部。其餘角色使用三格細微姿勢循環。腳底位置固定，整個人物一起呼吸，沒有切割衣服。
+
+## 小公主：八視圖參考與生成提示
+
+Use case: identity-preserve. Asset type: transparent 3-frame character working sprite strip for an isometric miniature EDA laboratory web game. Input image is the identity and exact clothing reference, showing the SAME character in eight views; do not include the reference's background or grid. Character: young woman with long chestnut brown hair, black blouse, white pleated skirt, orange lanyard with badge, black ankle boots. Preserve this person's facial identity, hair, body proportions, outfit and every accessory closely. Create one landscape strip of THREE equal-width cells, each containing the same one full-body person, at the SAME scale, foot baseline and position. View: slightly elevated, three-quarter rear SIDE view facing toward upper-left at a laboratory desk; enough of the cheek and glasses or face must remain visible for recognition. No desk is included: hands are naturally extended forward at waist-to-low-chest height as if operating a keyboard or arranging small electronic components on an unseen desk. Frame 1: working with both forearms gently forward, looking toward the monitor. Frame 2: almost identical body, tiny hand/finger movement and slight downward head nod. Frame 3: almost identical body, brief glance toward work area with one hand adjusting a small component; no actual held object. Make subtle variations suitable for a calm loop, not three unrelated poses. Every person must be complete head to shoes with transparent margins and separated from adjacent cells. Warm polished miniature 3D cartoon lighting matching the reference. Background MUST be genuinely transparent alpha, no floor, no shadows, no furniture, no props, no lettering, no grid lines, no frame labels. All torso and arm silhouettes intact. Landscape 3:2 or wider layout, three equal cells in ONE ROW only.
+
+## 安東尼：八視圖參考與生成提示
+
+Use case: identity-preserve. Asset type: transparent 3-frame character working sprite strip for an isometric miniature EDA laboratory web game. Input image is the identity and exact clothing reference, showing the SAME character in eight views; do not include the reference's background or grid. Character: man with short black hair, black rectangular glasses, pale gray fine-striped long-sleeve button-up shirt, dark trousers and black shoes. Preserve this person's facial identity, hair, body proportions, outfit and every accessory closely. Create one landscape strip of THREE equal-width cells, each containing the same one full-body person, at the SAME scale, foot baseline and position. View: slightly elevated, three-quarter rear SIDE view facing toward upper-right at a laboratory desk; enough of the cheek and glasses or face must remain visible for recognition. No desk is included: hands are naturally extended forward at waist-to-low-chest height as if operating a keyboard or arranging small electronic components on an unseen desk. Frame 1: working with both forearms gently forward, looking toward the monitor. Frame 2: almost identical body, tiny hand/finger movement and slight downward head nod. Frame 3: almost identical body, brief glance toward work area with one hand adjusting a small component; no actual held object. Make subtle variations suitable for a calm loop, not three unrelated poses. Every person must be complete head to shoes with transparent margins and separated from adjacent cells. Warm polished miniature 3D cartoon lighting matching the reference. Background MUST be genuinely transparent alpha, no floor, no shadows, no furniture, no props, no lettering, no grid lines, no frame labels. All torso and arm silhouettes intact. Landscape 3:2 or wider layout, three equal cells in ONE ROW only.
+
+## Hank：八視圖參考與初始工作姿勢提示
+
+Use case: identity-preserve. Asset type: transparent 3-frame character working sprite strip for an isometric miniature EDA laboratory web game. Input image is the identity and exact clothing reference, showing the SAME character in eight views; do not include the reference's background or grid. Character: man with side-parted black hair, black rectangular glasses, dark navy suit, white shirt, light gray tie, dark dress shoes. Preserve this person's facial identity, hair, body proportions, outfit and every accessory closely. Create one landscape strip of THREE equal-width cells, each containing the same one full-body person, at the SAME scale, foot baseline and position. View: slightly elevated, three-quarter rear SIDE view facing toward upper-right at a laboratory desk; enough of the cheek and glasses or face must remain visible for recognition. No desk is included: hands are naturally extended forward at waist-to-low-chest height as if operating a keyboard or arranging small electronic components on an unseen desk. Frame 1: working with both forearms gently forward, looking toward the monitor. Frame 2: almost identical body, tiny hand/finger movement and slight downward head nod. Frame 3: almost identical body, brief glance toward work area with one hand adjusting a small component; no actual held object. Make subtle variations suitable for a calm loop, not three unrelated poses. Every person must be complete head to shoes with transparent margins and separated from adjacent cells. Warm polished miniature 3D cartoon lighting matching the reference. Background MUST be genuinely transparent alpha, no floor, no shadows, no furniture, no props, no lettering, no grid lines, no frame labels. All torso and arm silhouettes intact. Landscape 3:2 or wider layout, three equal cells in ONE ROW only.
+
+## Hank：最終博士服修改提示
+
+Use case: identity-preserve. Edit target: this three-frame working character strip of Hank. Change ONLY his clothing: replace his navy suit jacket with a clean WHITE knee-length scientist's lab coat worn OPEN over a light blue collared button-up SHIRT, dark trousers and black shoes. No suit jacket underneath. Preserve Hank's exact face, hairstyle, black glasses, body proportions, all three working hand and head poses, camera angle, placement and three equal-width cells in one landscape row. He is working at an unseen PCB validation station. Keep full head-to-shoes bodies separate. Output MUST have genuinely transparent alpha background: remove all brown/dark studio background, glow and any floor, including between fingers, arms, legs and cells. Do not add desks, equipment, text, labels, or shadows. Preserve identity and all poses, only change the clothes and ensure background transparency.
+
+## 輸出來源
+
+- 小公主：`exec-feec4bb7-b05c-4016-abd0-7680e82b1af8.png`
+- 安東尼：`exec-da0bac70-040a-4443-975d-0b722b7f69ee.png`
+- Hank 最終：`exec-675d1ce7-8f1f-4886-884a-bd1a7a8bb5f7.png`
+
+內建工具原稿位於 `C:/Users/34610/.codex/generated_images/01a13e37-efbe-7913-97f9-3a095a6fb9bc/`。網站只讀取已複製到本目錄的正式素材。

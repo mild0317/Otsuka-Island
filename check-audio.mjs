@@ -78,8 +78,10 @@ try {
   check(chirpChecks.flying&&chirpChecks.perched&&chirpChecks.paused,'Bird calls trigger only while perched and animation is active');
   await evaluate('document.querySelector("#sound-volume").value=60;document.querySelector("#sound-volume").dispatchEvent(new Event("input"))');
   check(await evaluate('islandGame.audioState().volume===.6&&document.querySelector("#sound-volume-value").textContent==="60%"'),'Volume slider updates music and bird volume');
+  await evaluate('__qaAudio.catVoice({kind:"meow",location:"island"})');
+  check(await evaluate('islandGame.audioState().activeCatVoices>0'),'Same-scene cat voice starts through the shared volume bus');
   await touch(soundPoint);await delay(250);
-  check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="suspended"'),'Audio control silences music and birds');
+  check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="suspended"&&islandGame.audioState().activeCatVoices===0'),'Audio control silences music, birds and cat voices');
   await touch(soundPoint);await delay(150);
   await evaluate('__qaAudio.enterRoom("lab");__qaAudio.roomEvent("run","lab")');
   check(await evaluate('islandGame.audioState().activeRoomVoices>0'),'Room effects start alongside enabled background music');
@@ -88,9 +90,9 @@ try {
   check(await evaluate('islandGame.audioState().roomEffectsPlayed')===roomBefore,'Stale events from a different room cannot play');
   await evaluate('__qaAudio.roomEvent("cancel","lab")');
   check(await evaluate('islandGame.audioState().activeRoomVoices===0'),'Cancelling a room workflow stops its scheduled effects');
-  await evaluate('__qaAudio.roomEvent("run","lab")');
+  await evaluate('__qaAudio.roomEvent("run","lab");__qaAudio.catVoice({kind:"purr",location:"lab"})');
   await evaluate('Object.defineProperty(document,"hidden",{configurable:true,value:true});document.dispatchEvent(new Event("visibilitychange"))');await delay(120);
-  check(await evaluate('islandGame.audioState().contextState==="suspended"&&islandGame.audioState().activeRoomVoices===0'),'Hidden-page handler suspends audio and cancels room effects');
+  check(await evaluate('islandGame.audioState().contextState==="suspended"&&islandGame.audioState().activeRoomVoices===0&&islandGame.audioState().activeCatVoices===0'),'Hidden-page handler suspends audio and cancels room and cat effects');
   const hiddenBefore=await evaluate('islandGame.audioState().roomEffectsPlayed');
   await evaluate('__qaAudio.roomEvent("complete","lab")');
   check(await evaluate('islandGame.audioState().roomEffectsPlayed')===hiddenBefore,'Hidden room completion does not queue an obsolete sound');

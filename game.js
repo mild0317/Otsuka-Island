@@ -30,6 +30,8 @@
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
   const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
+  const catImage=new Image();let islandCat;
+  const coworkerImages=Object.fromEntries(['princess','anthony','hank'].map(key=>[key,new Image()]));
   let life;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
@@ -283,7 +285,8 @@
     if (!pointers.size) {
       if (wasClick && ready) {
         const point = worldPoint(p.x, p.y);
-        if (Math.abs(point.x - actor.x) < 38 && point.y < actor.y - 20 && point.y > actor.y - 155) greet();
+        if(islandCat?.location==='island'&&Math.abs(point.x-islandCat.x)<32&&point.y<islandCat.y-8&&point.y>islandCat.y-65)islandCat.greet();
+        else if (Math.abs(point.x - actor.x) < 38 && point.y < actor.y - 20 && point.y > actor.y - 155) greet();
         else { const target = resolveTarget(point); if (target) goTo(target); else toast('博士只走石板路與廣場。請點石階、廣場或四棟建築。'); }
       }
       gesture = null; canvas.classList.remove('dragging');
@@ -370,12 +373,12 @@
     ],
     tails: [{ pivot: [1004, 526], poly: [[935, 523], [1102, 523], [1094, 597], [919, 590]] }]
   };
-  function polygon(points) { ctx.moveTo(...points[0]); for (let i = 1; i < points.length; i++) ctx.lineTo(...points[i]); ctx.closePath(); }
-  function piece(poly, pivot, rotation = 0, dx = 0, dy = 0, holes = []) {
-    ctx.save();
-    ctx.translate(pivot[0] + dx, pivot[1] + dy); ctx.rotate(rotation); ctx.translate(-pivot[0], -pivot[1]);
-    ctx.beginPath(); polygon(poly); holes.forEach(polygon); ctx.clip('evenodd');
-    ctx.drawImage(sprites, 0, 0, 2048, 683); ctx.restore();
+  function polygon(points, g = ctx) { g.moveTo(...points[0]); for (let i = 1; i < points.length; i++) g.lineTo(...points[i]); g.closePath(); }
+  function piece(poly, pivot, rotation = 0, dx = 0, dy = 0, holes = [], g = ctx) {
+    g.save();
+    g.translate(pivot[0] + dx, pivot[1] + dy); g.rotate(rotation); g.translate(-pivot[0], -pivot[1]);
+    g.beginPath(); polygon(poly, g); holes.forEach(points=>polygon(points, g)); g.clip('evenodd');
+    g.drawImage(sprites, 0, 0, 2048, 683); g.restore();
   }
   let spriteTexture, activeClothing = null;
   const smooth = value => { const t = clamp(value, 0, 1); return t * t * (3 - 2 * t); };
@@ -430,7 +433,7 @@
     const w = Math.max(a.u, b.u, c.u) - u + 1, h = Math.max(a.v, b.v, c.v) - v + 1;
     g.drawImage(spriteTexture, u, v, w, h, u, v, w, h); g.restore();
   }
-  function drawClothing(view, angles, gait) {
+  function drawClothing(view, angles, gait, target = ctx) {
     const mesh = view.mesh || (view.mesh = createClothingMesh(view));
     const stamp = Math.floor(clock * 30);
     if (mesh.stamp !== stamp) {
@@ -453,56 +456,60 @@
       for (const indices of mesh.triangles) texturedTriangle(mesh.context, ...indices.map(i => mesh.vertices[i]), mesh.origin);
     }
     activeClothing = mesh;
-    ctx.drawImage(mesh.canvas, mesh.origin.x, mesh.origin.y);
+    target.drawImage(mesh.canvas, mesh.origin.x, mesh.origin.y);
   }
   function drawDoctor() {
     if (roomExperience.key) return;
-    const moving = actor.route.length > 0 || !!entry;
-    const stride = Math.sin(actor.phase), gait = actor.gait;
-    const perspective = .84 + (actor.y / H) * .22;
-    const size = 155 * perspective / 660;
-    const waving = actor.wave > 0;
-    const waveElapsed = 3.2 - actor.wave;
-    const waveEnvelope = waving ? Math.min(1, waveElapsed / .45, actor.wave / .55) : 0;
+    renderDoctor(ctx, actor, {entry});
+    if (actor.speech && clock < actor.speechUntil) drawSpeech();
+  }
+  function renderDoctor(g, subject, options = {}) {
+    const transition = options.entry;
+    const moving = subject.route.length > 0 || !!transition;
+    const stride = Math.sin(subject.phase), gait = subject.gait;
+    const perspective = options.perspective ?? (.84 + (subject.y / H) * .22);
+    const size = (options.height ?? (155 * perspective)) / 660;
+    const waving = subject.wave > 0;
+    const waveElapsed = 3.2 - subject.wave;
+    const waveEnvelope = waving ? Math.min(1, waveElapsed / .45, subject.wave / .55) : 0;
     let view = FRONT, mirror = 1;
-    if (!waving && moving) {
-      const dx = Math.cos(actor.facing), dy = Math.sin(actor.facing);
+    if (!waving && (moving || subject.lookAt)) {
+      const dx = Math.cos(subject.facing), dy = Math.sin(subject.facing);
       if (Math.abs(dx) > .52) { view = SIDE; mirror = dx < 0 ? -1 : 1; }
       else if (dy < -.2) view = BACK;
     }
     // The brief asks for a visible turn: blend the width during the initial change of heading.
-    const turnWidth = 1 - Math.sin(actor.turn * Math.PI) * .16;
-    const into = entry ? smooth(entry.progress) : 0;
-    const door = entry ? places[entry.key].door : actor;
-    ctx.save();
-    ctx.globalAlpha = 1 - smooth((into - .55) / .45);
-    ctx.translate(actor.x + (door.x - actor.x) * into, actor.y + (door.y - actor.y) * into);
-    ctx.scale(1 - into * .22, 1 - into * .22);
-    ctx.fillStyle = '#263b3438'; ctx.beginPath(); ctx.ellipse(0, -1, 30 * perspective, 9 * perspective, -.12, 0, Math.PI * 2); ctx.fill();
-    ctx.scale(size * mirror * turnWidth, size);
-    ctx.translate(-view.cx, -view.foot);
+    const turnWidth = 1 - Math.sin(subject.turn * Math.PI) * .16;
+    const into = transition ? smooth(transition.progress) : 0;
+    const door = transition ? places[transition.key].door : subject;
+    g.save();
+    g.globalAlpha = 1 - smooth((into - .55) / .45);
+    g.translate(subject.x + (door.x - subject.x) * into, subject.y + (door.y - subject.y) * into);
+    g.scale(1 - into * .22, 1 - into * .22);
+    g.fillStyle = '#263b3438'; g.beginPath(); g.ellipse(0, -1, 30 * perspective, 9 * perspective, -.12, 0, Math.PI * 2); g.fill();
+    g.scale(size * mirror * turnWidth, size);
+    g.translate(-view.cx, -view.foot);
     // Alternating feet lift while the body follows a two-step rhythm, with no idle drift.
     view.legs.forEach((leg, i) => {
-      const phase = actor.phase + i * Math.PI;
+      const phase = subject.phase + i * Math.PI;
       piece(leg.poly, leg.pivot, Math.sin(phase) * .23 * gait,
-        view === SIDE ? Math.sin(phase) * 13 * gait : 0, -Math.max(0, Math.cos(phase)) * 22 * gait);
+        view === SIDE ? Math.sin(phase) * 13 * gait : 0, -Math.max(0, Math.cos(phase)) * 22 * gait, [], g);
     });
     const breath = (1 + Math.sin(animationTime * Math.PI * 2 / 3.6)) / 2;
-    const bob = Math.cos(actor.phase * 2) * 4 * gait;
-    ctx.translate(view.cx, 592); ctx.rotate(stride * .018 * gait + waveEnvelope * .12);
-    ctx.scale(1 + breath * .018, 1 + breath * .028); ctx.translate(-view.cx, -592 + bob - breath * 4);
+    const bob = Math.cos(subject.phase * 2) * 4 * gait;
+    g.translate(view.cx, 592); g.rotate(stride * .018 * gait + waveEnvelope * .12);
+    g.scale(1 + breath * .018, 1 + breath * .028); g.translate(-view.cx, -592 + bob - breath * 4);
     const armAngles = view.arms.map((arm, i) => {
       const swing = view === SIDE ? .2 : .085;
-      let rotation = Math.sin(actor.phase + (i ? Math.PI : 0)) * swing * gait + Math.sin(animationTime * 1.75 + i * 1.2) * .025;
+      let rotation = Math.sin(subject.phase + (i ? Math.PI : 0)) * swing * gait + Math.sin(animationTime * 1.75 + i * 1.2) * .025;
       if (i === 0 && waving) rotation = waveEnvelope * (1.42 + Math.sin(waveElapsed * 10) * .22);
       return rotation;
     });
     // Sleeves, torso and hem share vertices in one continuous textured surface.
     // There are no punched-out arm/coat polygons that can expose the background.
-    drawClothing(view, armAngles, gait);
-    piece(view.head, [view.cx, 401], Math.sin(animationTime * 1.75 + .5) * .009 - waveEnvelope * .065, 0, -breath * 4);
-    ctx.restore();
-    if (actor.speech && clock < actor.speechUntil) drawSpeech();
+    drawClothing(view, armAngles, gait, g);
+    piece(view.head, [view.cx, 401], Math.sin(animationTime * 1.75 + .5) * .009 - waveEnvelope * .065, 0, -breath * 4, [], g);
+    g.restore();
   }
   function drawSpeech() {
     const center=screenCenter(), anchorX=(actor.x-camera.x)*camera.scale+center.x;
@@ -537,7 +544,8 @@
     if(actor.speech && clock >= actor.speechUntil) clearSpeech();
     updateLighting();
     life.update(animationTime, actor);
-    if (roomExperience.key) return;
+    islandCat?.update(motionEnabled?dt:0);
+    if (roomExperience.key) { roomExperience.update(dt); return; }
     if (entry) {
       entry.progress = Math.min(1, entry.progress + dt / 1.05);
       actor.phase += dt * 9; actor.gait = 1;
@@ -609,7 +617,10 @@
       ctx.beginPath(); ctx.arc(marker.x, marker.y - 11, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#bd704d'; ctx.fill(); ctx.restore();
     }
     life.drawBirds(animationTime);
-    drawDoctor(); ctx.restore();
+    if(!roomExperience.key&&islandCat?.y<=actor.y)islandCat.draw(ctx,'island',camera.scale);
+    drawDoctor();
+    if(!roomExperience.key&&islandCat?.y>actor.y)islandCat.draw(ctx,'island',camera.scale);
+    ctx.restore();
     updateBuildingName();
   }
   function drawLivingIsland() {
@@ -647,7 +658,7 @@
       [[221, 1164], [412, 1171], [480, 1248], [410, 1302], [288, 1264]],
       [[492, 1486], [698, 1473], [883, 1493], [974, 1530], [787, 1598], [604, 1600], [509, 1555]]
     ];
-    groundPlanes.forEach(polygon); ctx.clip();
+    groundPlanes.forEach(points=>polygon(points)); ctx.clip();
     const casters = [[532, 664, 1.2], [805, 1078, 1], [307, 1231, .8], [815, 1518, 1], [367, 588, .55], [750, 623, .6]];
     for (const [x, y, factor] of casters) {
       ctx.save(); ctx.translate(x + l.shadowX * factor * .5, y + l.shadowY * factor * .4);
@@ -736,11 +747,14 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-work-v21.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
     life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
-    roomExperience.setCharacter(sprites);
+    roomExperience.setCharacterRenderer((g, subject)=>renderDoctor(g, subject, {height:200, perspective:1}));
+    islandCat=new IslandCat({image:catImage,island:{points:nodes,doors:Object.fromEntries(Object.entries(places).map(([key,place])=>[key,{porch:{...nodes[place.node]},door:{...place.door}}])),isWalkable:p=>!!ground(p,22),findPath:(start,p)=>{const target=ground(p,22);return target?findPath(start,target):null;}},getPlayer:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:{location:'island',x:actor.x,y:actor.y},onVoice:voice=>islandAudio.catVoice(voice)});
+    roomExperience.setCat(islandCat);
+    roomExperience.setCoworkers(coworkerImages);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {
     $('#loading').innerHTML = '<p>圖片讀取失敗。請確認 HTML 與圖片保留在同一個資料夾。</p>';
@@ -750,6 +764,8 @@
   // A read-only snapshot helps verify routing and idle behavior without altering play.
   window.islandGame = Object.freeze({
     audioState: () => islandAudio.snapshot(),
+    catState:()=>islandCat?.snapshot(),
+    roomWalkable:p=>!!roomExperience.world?.nav.isWalkable(p),
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
     getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
