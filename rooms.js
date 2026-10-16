@@ -105,13 +105,15 @@
     setCharacterRenderer(renderer){this.renderCharacter=renderer;}
     setCat(cat){this.cat=cat;}
     setCoworkers(images){this.coworkerImages=images;}
+    setNPCLife(service){this.npcLife=service;}
     resizeScene(){if(!this.key)return;const stage=this.$('.room-stage'),scene=this.$('.room-scene'),w=Math.min(stage.clientWidth,stage.clientHeight*1.5);scene.style.width=w+'px';scene.style.height=(w/1.5)+'px';this.world?.draw();}
     update(dt){this.world?.update(dt,this.motion);}
     updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation!==null||pending===Number(b.dataset.station))));}
     open(key) {
       const room = rooms[key]; if (!room || this.key) return;
       this.key = key; this.dialog.dataset.theme = room.theme;
-      this.world=new IslandRoomWorld.RoomWorld({key,canvas:this.$('.room-world'),art:this.$('#room-art'),renderCharacter:this.renderCharacter,cat:this.cat,coworkerImages:this.coworkerImages,onArrive:index=>this.showTopic(index)});
+      this.npcLife?.load(key);
+      this.world=new IslandRoomWorld.RoomWorld({key,canvas:this.$('.room-world'),art:this.$('#room-art'),renderCharacter:this.renderCharacter,cat:this.cat,coworkerImages:this.coworkerImages,npcLife:this.npcLife,onArrive:index=>this.showTopic(index)});
       this.$('#room-en').textContent = room.en; this.$('#room-title').textContent = room.name;
       this.renderTopic();
       this.$('.room-stations').replaceChildren(); this.$('.room-objects').replaceChildren();

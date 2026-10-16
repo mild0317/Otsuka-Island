@@ -69,11 +69,13 @@ try {
   await screenshot('room-scale-clock-v22.png');
   await evaluate('__qaCat.setLocation("island",{x:675,y:1530});__qaCat.wait=99999');await clickUI('.room-close');
   await choose('library');
-  await evaluate('window.__qaWorkerDraws=[];const original=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(image,...args){if(image.src?.includes("npc-hank-work-v22")){const m=this.getTransform();__qaWorkerDraws.push({crop:args.slice(0,4),c:m.c,d:m.d});}return original.call(this,image,...args)}');
-  await delay(1600);await waitFor('__qaWorkerDraws.length>=12','Hank animation samples');const frames=await evaluate('__qaWorkerDraws');
-  check(frames.length>=12&&new Set(frames.map(f=>JSON.stringify(f.crop))).size===1,'Hank uses one intact rear-facing work pose without abrupt sprite changes');
-  check(frames.some(f=>Math.abs(f.c-frames[0].c)>.0005)&&frames.every((f,i)=>i===0||Math.abs(f.c-frames[i-1].c)<.01),'Working lean changes continuously between frames');
-  check(await evaluate('IslandRoomWorld.coworkers.library.direction==="upper-left"'),'Hank faces the left workstation');
+  const beforeWorker=await evaluate('islandGame.coworkerState("library")');
+  await waitFor('islandGame.coworkerState("library").assetsReady','Hank cartoon pose sheets ready');
+  await evaluate('window.__qaWorkerSources=new Set();const original=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(image,...args){if(image.src?.includes("npc-hank-"))__qaWorkerSources.add(image.src);return original.call(this,image,...args)}');
+  await delay(1000);const sources=await evaluate('[...__qaWorkerSources]');
+  check(sources.length>0&&sources.every(s=>/npc-hank-(seats|gestures|views)-v23/.test(s)), 'Hank renders only the corrected cartoon pose sheets');
+  check((await evaluate('islandGame.coworkerState("library").animationTime'))>beforeWorker.animationTime,'Hank working routine advances continuously');
+  check(await evaluate('islandGame.roomState().world.coworkers.length===1&&islandGame.coworkerState("library").height===310'),'One persistent Hank at the corrected room scale');
   await screenshot('room-scale-hank-v22.png');await clickUI('.room-close');await choose('lab');await screenshot('room-scale-lab-v22.png');
   await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(150);await screenshot('room-scale-phone-v22.png');
   check(errors.length===0,'No browser errors: '+JSON.stringify(errors));await call('Browser.close');

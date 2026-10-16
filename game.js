@@ -30,7 +30,7 @@
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
   const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
-  const catImage=new Image(),catActions=new Image();let islandCat;
+  const catImage=new Image(),catActions=new Image();let islandCat,npcLife;
   const coworkerImages=Object.fromEntries(['princess','anthony','hank'].map(key=>[key,new Image()]));
   let life;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
@@ -165,6 +165,7 @@
   }
   function goTo(target) {
     if (!ready || roomExperience.key) return;
+    if(target.key)npcLife?.load(target.key);
     entry = null; pendingRoom = target.key || null;
     const nextSelection = target.key || null;
     if (selectedBuilding !== nextSelection) selectionTime = clock;
@@ -546,6 +547,7 @@
     updateLighting();
     life.update(animationTime, actor);
     islandCat?.update(motionEnabled?dt:0);
+    npcLife?.update(motionEnabled?dt:0);
     if (roomExperience.key) { roomExperience.update(dt); return; }
     if (entry) {
       const progress=Math.min(1,entry.progress+dt/1.05),door=places[entry.key].door,from={x:actor.x+(door.x-actor.x)*smooth(entry.progress),y:actor.y+(door.y-actor.y)*smooth(entry.progress)},to={x:actor.x+(door.x-actor.x)*smooth(progress),y:actor.y+(door.y-actor.y)*smooth(progress)};
@@ -751,14 +753,16 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-work-v'+(key==='hank'?22:21)+'.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,key==='hank'?'assets/npc-hank-seats-v23.png':'assets/npc-'+key+'-work-v21.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
     life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
     roomExperience.setCharacterRenderer((g, subject)=>renderDoctor(g, subject, {height:280, perspective:1}));
-    islandCat=new IslandCat({image:catImage,actionImage:catActions,island:{points:nodes,doors:Object.fromEntries(Object.entries(places).map(([key,place])=>[key,{porch:{...nodes[place.node]},door:{...place.door}}])),isWalkable:p=>!!ground(p,22),findPath:(start,p)=>{const target=ground(p,22);return target?findPath(start,target):null;}},getPeople:location=>{const worker=IslandRoomWorld.coworkers[location],people=worker?[{...worker,radius:68}]:[];if(location===(roomExperience.key||'island'))people.push(roomExperience.key?{...roomExperience.world.actor,radius:64}:entry?{x:actor.x+(places[entry.key].door.x-actor.x)*smooth(entry.progress),y:actor.y+(places[entry.key].door.y-actor.y)*smooth(entry.progress),radius:43}:actor);return people;},getPlayer:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:{location:'island',x:actor.x,y:actor.y},onVoice:voice=>islandAudio.catVoice(voice)});
+    islandCat=new IslandCat({image:catImage,actionImage:catActions,island:{points:nodes,doors:Object.fromEntries(Object.entries(places).map(([key,place])=>[key,{porch:{...nodes[place.node]},door:{...place.door}}])),isWalkable:p=>!!ground(p,22),findPath:(start,p)=>{const target=ground(p,22);return target?findPath(start,target):null;}},getPeople:location=>{const people=npcLife?.people(location)||[];if(location===(roomExperience.key||'island'))people.push(roomExperience.key?{...roomExperience.world.actor,radius:64}:entry?{x:actor.x+(places[entry.key].door.x-actor.x)*smooth(entry.progress),y:actor.y+(places[entry.key].door.y-actor.y)*smooth(entry.progress),radius:43}:actor);return people;},getPlayer:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:{location:'island',x:actor.x,y:actor.y},onVoice:voice=>islandAudio.catVoice(voice)});
     roomExperience.setCat(islandCat);
     roomExperience.setCoworkers(coworkerImages);
+    npcLife=new IslandNPCLife({fallbackImages:coworkerImages,getCat:()=>islandCat,getDoctor:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:null});
+    roomExperience.setNPCLife(npcLife);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {
     $('#loading').innerHTML = '<p>圖片讀取失敗。請確認 HTML 與圖片保留在同一個資料夾。</p>';
@@ -769,7 +773,8 @@
   window.islandGame = Object.freeze({
     audioState: () => islandAudio.snapshot(),
     catState:()=>islandCat?.snapshot(),
-    roomWalkable:p=>!!roomExperience.world?.nav.isWalkable(p),
+    roomWalkable:p=>!!roomExperience.world?.nav.isWalkable(p)&&IslandCatTerrain.peopleClear(p,p,npcLife?.people(roomExperience.key)||[],66),
+    coworkerState:key=>npcLife?.snapshot(key),
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
     getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
