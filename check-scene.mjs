@@ -33,12 +33,16 @@ try {
   await call('Page.navigate',{url:process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173'});
   for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(100);}
   check(await evaluate('window.islandGame?.getState().ready'),'Full-screen scene and all local assets load');
+  const textures=await evaluate('islandGame.sceneSnapshot()');
+  check(textures.detailTextures.length===4&&textures.detailTextures.every(t=>t.width>=1200&&t.height>=1200),'Four independently rendered high-detail interior textures load');
+  check(textures.displayResolution.width===768&&textures.displayResolution.height===480,'Animated PCB screens retain high-resolution display buffers');
   const clickElement=async selector=>{const p=await evaluate('(()=>{const b=document.querySelector('+JSON.stringify(selector)+');b.scrollIntoView({block:"nearest"});const r=b.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');await click(p.x,p.y)};
-  for(const [w,h] of [[1440,1000],[320,640],[390,844],[844,390]]){
+  for(const [w,h] of [[3840,2160],[1440,1000],[320,640],[390,844],[844,390]]){
     await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:w<900});await delay(200);
     await clickElement('#fit');
     const layout=await evaluate('(()=>{const c=document.querySelector("#world").getBoundingClientRect(),a=islandGame.worldToScreen({x:31,y:80}),b=islandGame.worldToScreen({x:1100,y:1930});const rectangles=[document.querySelector(".brand"),...document.querySelectorAll(".scene-dock button")].map(e=>e.getBoundingClientRect());return {canvas:{x:c.x,y:c.y,w:c.width,h:c.height},hidden:document.querySelector("#island-controls").hidden,rectangles:rectangles.map(r=>({x:r.x,y:r.y,w:r.width,h:r.height})),overlay:rectangles.reduce((n,r)=>n+r.width*r.height,0)/(innerWidth*innerHeight),island:{a,b}}})()');
     check(layout.canvas.x===0&&layout.canvas.y===0&&layout.canvas.w===w&&layout.canvas.h===h,'Island canvas fills viewport '+w+'x'+h);
+    if(w===3840)check(await evaluate('document.querySelector("#world").width>=3840&&document.querySelector("#world").height>=2160'),'4K viewport uses a full-resolution drawing buffer');
     check(layout.hidden&&layout.overlay<.05,'Default controls cover less than 5% of the screen: '+(100*layout.overlay).toFixed(2)+'%');
     check(layout.rectangles.every(r=>r.x>=0&&r.y>=0&&r.x+r.w<=w&&r.y+r.h<=h),'Minimal controls stay inside screen');
     check(layout.island.a.x>=0&&layout.island.a.y>=0&&layout.island.b.x<=w&&layout.island.b.y<=h,'Complete island fits without cropping');

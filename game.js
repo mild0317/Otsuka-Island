@@ -10,6 +10,7 @@
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
+  const detailImages = Object.fromEntries(['design','workshop','verification','simulation'].map(key => [key, new Image()]));
   let life;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
@@ -158,9 +159,11 @@
   function resize() {
     const rect = canvas.getBoundingClientRect();
     width = rect.width; height = rect.height;
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    // Match the physical display, with a bounded buffer on very large displays.
+    const dpr = Math.min(devicePixelRatio || 1, 3, Math.sqrt(16777216 / (width * height)));
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     baseScale = Math.min((height - 32) / islandView.height, (width - (width <= 760 ? 20 : 40)) / islandView.width);
     camera.scale = baseScale * camera.zoom;
     $('#zoom-hint').textContent = width <= 760 ? '雙指縮放' : '滾輪縮放';
@@ -346,8 +349,8 @@
     for (let row = 0; row <= rows; row++) for (let column = 0; column <= columns; column++) {
       const p = P(left + (right - left) * column / columns, top + (bottom - top) * row / rows);
       const weights = view.arms.map(arm => {
-        const edge = inside(p, arm.poly) ? 1 : 1 - smooth(distanceToOutline(p, arm.poly) / 16);
-        return edge * smooth((p.y - arm.pivot[1] + 8) / 46);
+        const edge = inside(p, arm.poly) ? 1 : 1 - smooth(distanceToOutline(p, arm.poly) / 32);
+        return edge * smooth((p.y - arm.pivot[1] + 8) / 64);
       });
       vertices.push({ u: p.x, v: p.y, x: p.x, y: p.y, weights });
     }
@@ -440,7 +443,7 @@
     ctx.translate(view.cx, 592); ctx.rotate(stride * .018 * gait + waveEnvelope * .12);
     ctx.scale(1 + breath * .018, 1 + breath * .028); ctx.translate(-view.cx, -592 + bob - breath * 4);
     const armAngles = view.arms.map((arm, i) => {
-      const swing = view === BACK ? .085 : .2;
+      const swing = view === SIDE ? .2 : .085;
       let rotation = Math.sin(actor.phase + (i ? Math.PI : 0)) * swing * gait + Math.sin(animationTime * 1.75 + i * 1.2) * .025;
       if (i === 0 && waving) rotation = waveEnvelope * (1.42 + Math.sin(waveElapsed * 10) * .22);
       return rotation;
@@ -652,10 +655,10 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg')]).then(() => {
+  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, 'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, isWalkable: p => !!ground(p, 22) });
+    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22) });
     roomExperience.setCharacter(sprites);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {
@@ -672,7 +675,7 @@
     isWalkable: p => !!ground(p, 22),
     sceneSnapshot: () => life?.snapshot(),
     treeCoverageAt: t => life.treeCoverage(t),
-    clothingDiagnostics: () => {
+    clothingDiagnostics: (includeImage = false) => {
       if (!activeClothing) return null;
       const { canvas: layer, context: g } = activeClothing, w = layer.width, h = layer.height;
       const pixels = g.getImageData(0, 0, w, h).data, visited = new Uint8Array(w * h), queue = new Int32Array(w * h);
@@ -702,7 +705,7 @@
         }
         if (tail > 20) components++;
       }
-      return { direction: activeClothing.direction, holes, largestHole, components, phase: actor.phase };
+      return { direction: activeClothing.direction, holes, largestHole, components, phase: actor.phase, ...(includeImage && holes ? {image:layer.toDataURL()} : {}) };
     },
     worldToScreen: p => { const c = screenCenter(); return P((p.x - camera.x) * camera.scale + c.x, (p.y - camera.y) * camera.scale + c.y); }
   });

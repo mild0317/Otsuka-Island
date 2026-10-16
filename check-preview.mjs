@@ -106,9 +106,19 @@ try {
   let autoWave;
   for (let i=0;i<50;i++) { autoWave=await evaluate('islandGame.getState()'); if(autoWave.wave>0)break; await delay(500); }
   check(autoWave.wave>0 && autoWave.x===resting.x && autoWave.y===resting.y, 'Random idle greeting occurs without position drift: '+JSON.stringify(autoWave));
+  // Sample each direction explicitly on the safe plaza; diagonal stair timing
+  // alone can miss a view when rendering speed or capture timing changes.
+  const clothingSamples = [];
+  const plazaStart=await evaluate('islandGame.worldToScreen({x:650,y:1550})');
+  await click(plazaStart.x+canvasRect.x,plazaStart.y+canvasRect.y);await delay(350);
+  for(const [key,code] of [['ArrowUp',38],['ArrowDown',40],['ArrowLeft',37]]){
+    await evaluate('document.querySelector("#world").focus()');
+    await call('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,windowsVirtualKeyCode:code});
+    await call('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,windowsVirtualKeyCode:code});
+    for(let i=0;i<9;i++){await delay(40);clothingSamples.push(await evaluate('islandGame.clothingDiagnostics()'));}
+  }
   await evaluate('document.querySelector("[data-place=clock]").click();document.querySelector("#follow").click();');
   for (let i=0;i<3;i++) await evaluate('document.querySelector("#zoom-in").click()');
-  const clothingSamples = [];
   for (let i=0;i<28;i++) {
     await delay(160);
     const diagnosis = await evaluate('islandGame.clothingDiagnostics()');
@@ -123,7 +133,10 @@ try {
   const badClothing = clothingSamples.filter(s => s.holes > 0 || s.components !== 1);
   check(!badClothing.length, `Coat remains connected with no transparent holes across ${clothingSamples.length} walking poses: ${JSON.stringify(badClothing)}`);
   check(new Set(clothingSamples.map(s=>s.direction)).size === 3, 'Walking clothing checked from front, side and back');
-  await evaluate('document.querySelector("#fit").click()');
+  await evaluate('if(islandGame.roomState().open)document.querySelector(".room-close").click();document.querySelector("#fit").click()');
+  const park=await evaluate('islandGame.worldToScreen({x:625,y:1540})');
+  await click(park.x+canvasRect.x,park.y+canvasRect.y);
+  check(await evaluate('!islandGame.roomState().open&&islandGame.roomState().pending===null'),'Mobile gesture checks start with no pending room dialog');
   for (const [mobileWidth,mobileHeight] of [[320,640],[390,844],[430,932]]) {
     await call('Emulation.setDeviceMetricsOverride', { width: mobileWidth, height: mobileHeight, deviceScaleFactor: 1, mobile: true });
     await delay(400);
