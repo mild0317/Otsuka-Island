@@ -5,6 +5,7 @@ const out = path.resolve('.preview');
 await mkdir(out, { recursive: true });
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
   '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
+  '--autoplay-policy='+(process.env.ISLAND_AUTOPLAY==='allowed'?'no-user-gesture-required':'document-user-activation-required'),
   '--remote-debugging-port=9338', `--user-data-dir=${path.join(out, 'chrome-' + Date.now())}`, 'about:blank'
 ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
 chrome.stderr.on('data', data => { if (String(data).includes('DevTools')) console.log(String(data).trim()); });
@@ -30,12 +31,24 @@ try {
   const click = async (x, y) => { await call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); };
   const check = (ok, message) => { if (!ok) throw Error(message); console.log('PASS', message); };
   await call('Runtime.enable');await call('Log.enable');await call('Page.enable');
+  await call('Page.addScriptToEvaluateOnNewDocument',{source:`Object.defineProperty(window,'IslandAudio',{configurable:true,set(Class){const original=Class.prototype.createContext;Class.prototype.createContext=function(){original.call(this);window.__qaAudio=this;const a=this.context.createAnalyser();a.fftSize=2048;this.master.disconnect();this.master.connect(a);a.connect(this.context.destination);window.__qaAnalyser=a};Object.defineProperty(window,'IslandAudio',{value:Class,writable:true,configurable:true})}})`});
   await call('Page.navigate',{url:process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173'});
   for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(100);}
   check(await evaluate('window.islandGame?.getState().ready'),'Full-screen scene and all local assets load');
   const clickUI=async selector=>{const p=await evaluate('(()=>{const r=document.querySelector('+JSON.stringify(selector)+').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');await click(p.x,p.y);};
   const world=async(x,y)=>evaluate('islandGame.worldToScreen({x:'+x+',y:'+y+'})');
   const labelState=()=>evaluate('(()=>{const e=document.querySelector("#building-name"),r=e.getBoundingClientRect();return{hidden:e.hidden,text:e.textContent,key:e.dataset.building,x:r.x,y:r.y,right:r.right,bottom:r.bottom}})()');
+  const touch=async p=>{await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:0}]});await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
+  check(await evaluate('islandGame.audioState().enabled&&document.querySelector("#sound-toggle").getAttribute("aria-pressed")==="true"'),'Music is enabled by default');
+  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
+  await delay(150);
+  if(process.env.ISLAND_AUTOPLAY==='allowed')check(await evaluate('islandGame.audioState().contextState==="running"&&islandGame.audioState().musicNotesScheduled>0'),'Allowed autoplay starts music without a gesture');
+  else check(await evaluate('islandGame.audioState().contextState==="suspended"&&islandGame.audioState().musicNotesScheduled===0'),'Blocked autoplay waits for a user gesture while remaining enabled');
+  await touch({x:3,y:3});await delay(200);
+  check(await evaluate('islandGame.audioState().contextState==="running"&&islandGame.audioState().musicNotesScheduled>0'),'First ordinary phone touch starts enabled music');
+  await call('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await clickUI('#sound-toggle');await delay(200);await click(3,3);await delay(100);
+  check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="suspended"'),'Subsequent ordinary gestures respect explicit mute');
   await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await delay(100);
   check((await labelState()).hidden,'No permanent building name before interaction');
   for(const [key,name,x,y] of [['clock','設計工作室',550,400],['workshop','製作工坊',850,800],['library','驗証工作室',300,1000],['lab','模擬實驗室',860,1250]]){
@@ -49,17 +62,16 @@ try {
   check(!(await labelState()).hidden&&(await labelState()).key==='workshop','Clicked building name persists after pointer leaves');
   const ground=await world(697,1536);await click(ground.x,ground.y);await delay(70);check((await labelState()).hidden,'Clicking paving clears building name');
   await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});await delay(100);
-  const touch=async p=>{await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...p,id:0}]});await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});};
   const mobileHouse=await world(300,1000);await touch(mobileHouse);await delay(80);
   check(!(await labelState()).hidden&&(await labelState()).text==='驗証工作室','Phone tap displays the selected building name');await screenshot('building-name-phone-v17.png');
   await touch(await world(625,1540));
-  check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="uninitialized"'),'Audio stays silent until the user enables it');
-  await evaluate(`(()=>{const original=IslandAudio.prototype.createContext;IslandAudio.prototype.createContext=function(){original.call(this);window.__qaAudio=this;const a=this.context.createAnalyser();a.fftSize=2048;this.master.disconnect();this.master.connect(a);a.connect(this.context.destination);window.__qaAnalyser=a}})()`);
+  check(await evaluate('!islandGame.audioState().enabled'),'Walking and selecting buildings preserve explicit mute');
   const soundPoint=await evaluate('(()=>{const r=document.querySelector("#sound-toggle").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');await touch(soundPoint);
   for(let i=0;i<50;i++){if(await evaluate('islandGame.audioState().contextState==="running"'))break;await delay(30);}
   await delay(450);
   check(await evaluate('islandGame.audioState().enabled&&document.querySelector("#sound-toggle").getAttribute("aria-pressed")==="true"'),'Phone audio control enables playback');
-  const rms=await evaluate('(()=>{const data=new Float32Array(__qaAnalyser.fftSize);__qaAnalyser.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((s,x)=>s+x*x,0)/data.length)})()');
+  let rms=0;
+  for(let i=0;i<15;i++){rms=await evaluate('(()=>{const data=new Float32Array(__qaAnalyser.fftSize);__qaAnalyser.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((s,x)=>s+x*x,0)/data.length)})()');if(rms>.00001)break;await delay(100);}
   check(rms>.00001&&rms<.5,'Background music produces a bounded audio signal: '+rms);
   check(await evaluate('islandGame.audioState().musicNotesScheduled>0'),'Ambient melody and chord notes are scheduled');
   const chirpChecks=await evaluate(`(()=>{const a=__qaAudio,b={id:99001,state:'flying',mode:'roof',x:800,visibleAt:0};let before=a.chirpsPlayed;a.updateBirds([b],0);a.updateBirds([b],20);const flying=a.chirpsPlayed===before;b.state='perched';a.nextBirdSound=0;a.updateBirds([b],0);a.updateBirds([b],20);const perched=a.chirpsPlayed===before+1&&a.lastChirp.state==='perched';before=a.chirpsPlayed;a.updateBirds([b],100,false);return{flying,perched,paused:a.chirpsPlayed===before}})()`);
@@ -86,5 +98,10 @@ try {
   check(await evaluate('islandGame.audioState().contextState==="running"'),'Returning-page handler resumes enabled audio');
   await evaluate('__qaAudio.leaveRoom()');
   await touch(soundPoint);await delay(150);
+  await call('Page.reload',{ignoreCache:true});
+  for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(100);}
+  const freshSoundPoint=await evaluate('(()=>{const r=document.querySelector("#sound-toggle").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await touch(freshSoundPoint);await delay(200);await touch({x:3,y:3});await delay(150);
+  check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().contextState==="suspended"'),'Muting as the very first gesture cancels pending autoplay');
   check(errors.length===0,'No browser errors: '+JSON.stringify(errors));await call('Browser.close');
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}

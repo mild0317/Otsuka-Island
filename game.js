@@ -57,6 +57,7 @@
   });
   $('#sound-toggle').addEventListener('click',()=>islandAudio.setEnabled(!islandAudio.enabled));
   $('#sound-volume').addEventListener('input',event=>{const value=Number(event.target.value);islandAudio.setVolume(value/100);$('#sound-volume-value').textContent=`${value}%`;});
+  islandAudio.setEnabled(true);
   let previewHour = null, timeStamp = -1;
   const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
   let lighting = { hour: 12, minute: 0, second: 0, shadowX: 0, shadowY: 20, length: 1, opacity: .14 };

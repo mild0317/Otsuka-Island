@@ -5,13 +5,16 @@
   const frequency = midi => 440 * 2 ** ((midi-69)/12);
   class IslandAudio {
     constructor({onChange,onError} = {}) {
-      this.onChange=onChange; this.onError=onError; this.enabled=false; this.volume=.35; this.context=null;
+      this.onChange=onChange; this.onError=onError; this.enabled=true; this.volume=.35; this.context=null;this.playbackRequest=0;
       this.timer=null; this.suspendTimer=null; this.nodes=new Set(); this.birdTimes=new Map();
       this.step=0; this.nextStepTime=0; this.nextBirdSound=0;
       this.notesScheduled=0; this.chirpsPlayed=0; this.lastChirp=null;
-      this.roomKey=null;this.roomNodes=new Set();this.nextRoomSound=Infinity;this.roomEffectsPlayed=0;this.lastRoomEffect=null;
+      this.roomKey=null;this.roomNodes=new Set();this.nextRoomSound=Infinity;this.roomEffectsPlayed=0;this.lastRoomEffect=null;this.roomEventCounts={};
+      // Autoplay may wait for a trusted gesture. An explicit mute always wins.
+      const unlock=event=>{if(event.isTrusted&&this.enabled&&this.context?.state!=='running'&&!event.target.closest?.('#sound-toggle,.room-sound'))this.tryStart();};
+      for(const type of ['pointerdown','touchend','keydown'])document.addEventListener(type,unlock,{capture:true,passive:true});
       document.addEventListener('visibilitychange',()=>this.visibility());
-      window.addEventListener('pagehide',()=>{this.stopRoomEffects();this.stopTimer();this.context?.suspend().catch(()=>{});});
+      window.addEventListener('pagehide',()=>{this.playbackRequest++;this.stopRoomEffects();this.stopTimer();this.context?.suspend().catch(()=>{});});
       window.addEventListener('pageshow',()=>{if(this.enabled)this.visibility();});
     }
     createContext() {
@@ -26,33 +29,42 @@
       const samples=this.noise.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;
     }
     async setEnabled(enabled) {
-      clearTimeout(this.suspendTimer);this.enabled=enabled;
+      clearTimeout(this.suspendTimer);this.enabled=enabled;this.onChange?.(enabled);
       if(!enabled){
+        this.playbackRequest++;
         this.stopTimer();this.birdTimes.clear();this.stopRoomEffects();
         if(this.context){
           const t=this.context.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(0,t,.025);
           for(const node of this.nodes){try{node.stop(t+.09);}catch{}}
           this.suspendTimer=setTimeout(()=>{if(!this.enabled)this.context.suspend().catch(()=>{});},120);
         }
-        this.onChange?.(false);return;
+        return;
       }
+      return this.tryStart();
+    }
+    async tryStart(){
+      if(!this.enabled||document.hidden)return;
+      const request=++this.playbackRequest;
       try{
         if(!this.context)this.createContext();
         await this.context.resume();
-        if(!this.enabled)return;
+        if(!this.enabled||document.hidden){this.context.suspend().catch(()=>{});return;}
+        if(request!==this.playbackRequest||this.context.state!=='running')return;
         const t=this.context.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(this.volume*.75,t,.2);
-        this.nextStepTime=t+.12;this.nextRoomSound=t+2+Math.random()*3;this.startTimer();this.onChange?.(true);
+        this.nextStepTime=t+.12;this.nextRoomSound=t+2+Math.random()*3;this.startTimer();
         if(this.roomKey)this.roomEvent('enter',this.roomKey);
-      }catch(error){this.enabled=false;this.stopTimer();this.onChange?.(false);this.onError?.(error.message);}
+      }catch(error){
+        if(request!==this.playbackRequest||!this.enabled||error.name==='NotAllowedError')return;
+        this.enabled=false;this.stopTimer();this.onChange?.(false);this.onError?.(error.message);
+      }
     }
     setVolume(value){this.volume=Math.max(0,Math.min(1,value));if(this.context&&this.enabled)this.master.gain.setTargetAtTime(this.volume*.75,this.context.currentTime,.08);}
     stopTimer(){clearInterval(this.timer);this.timer=null;}
     startTimer(){this.stopTimer();this.schedule();this.timer=setInterval(()=>this.schedule(),120);}
     async visibility(){
-      if(!this.context)return;
-      if(document.hidden||!this.enabled){this.stopRoomEffects();this.stopTimer();await this.context.suspend().catch(()=>{});return;}
-      try{await this.context.resume();if(this.enabled&&!document.hidden){this.nextStepTime=this.context.currentTime+.12;this.nextRoomSound=this.context.currentTime+2+Math.random()*3;this.startTimer();}}
-      catch{this.enabled=false;this.stopTimer();this.onChange?.(false);}
+      if(!this.context){if(this.enabled&&!document.hidden)await this.tryStart();return;}
+      if(document.hidden||!this.enabled){this.playbackRequest++;this.stopRoomEffects();this.stopTimer();await this.context.suspend().catch(()=>{});return;}
+      await this.tryStart();
     }
     tone(midi,start,duration,level,pad=false){
       const c=this.context,osc=c.createOscillator(),gain=c.createGain();
@@ -85,6 +97,7 @@
       if(!this.enabled||document.hidden||this.context?.state!=='running')return;
       const roots={clock:72,workshop:64,library:79,lab:55},root=roots[key];if(root===undefined)return;
       this.roomEffectsPlayed++;this.lastRoomEffect={key,type,index};
+      const eventKey=key+':'+type;this.roomEventCounts[eventKey]=(this.roomEventCounts[eventKey]||0)+1;
       if(type==='complete'){
         const notes=key==='library'?[79,83,86]:key==='lab'?[67,74,79]:key==='workshop'?[64,71,76]:[72,76,79];
         notes.forEach((note,i)=>this.effectTone(note,i*.13,.45,.12));return;
@@ -135,7 +148,7 @@
       }
       this.chirpsPlayed++;this.lastChirp={birdId:bird.id,state:bird.state,mode:bird.mode};
     }
-    snapshot(){return{enabled:this.enabled,volume:this.volume,contextState:this.context?.state||'uninitialized',musicNotesScheduled:this.notesScheduled,chirpsPlayed:this.chirpsPlayed,lastChirp:this.lastChirp,activeVoices:this.nodes.size,roomKey:this.roomKey,roomEffectsPlayed:this.roomEffectsPlayed,lastRoomEffect:this.lastRoomEffect,activeRoomVoices:this.roomNodes.size};}
+    snapshot(){return{enabled:this.enabled,volume:this.volume,contextState:this.context?.state||'uninitialized',musicNotesScheduled:this.notesScheduled,chirpsPlayed:this.chirpsPlayed,lastChirp:this.lastChirp,activeVoices:this.nodes.size,roomKey:this.roomKey,roomEffectsPlayed:this.roomEffectsPlayed,lastRoomEffect:this.lastRoomEffect,roomEventCounts:{...this.roomEventCounts},activeRoomVoices:this.roomNodes.size};}
   }
   window.IslandAudio=IslandAudio;
 })();

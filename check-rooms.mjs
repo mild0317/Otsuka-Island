@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 const out = path.resolve('.preview');
 await mkdir(out, { recursive: true });
@@ -30,6 +30,9 @@ try {
   const click = async (x, y) => { await call('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); };
   const check = (ok, message) => { if (!ok) throw Error(message); console.log('PASS', message); };
   await call('Runtime.enable');await call('Log.enable');await call('Page.enable');
+  const downloads=path.join(out,'downloads');await mkdir(downloads,{recursive:true});
+  await call('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});
+  await call('Page.addScriptToEvaluateOnNewDocument',{source:`Object.defineProperty(window,'IslandAudio',{configurable:true,set(Class){const original=Class.prototype.createContext;Class.prototype.createContext=function(){original.call(this);window.__qaAudio=this;const a=this.context.createAnalyser();a.fftSize=2048;this.effects.connect(a);window.__qaRoomAnalyser=a};Object.defineProperty(window,'IslandAudio',{value:Class,writable:true,configurable:true})}})`});
   await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await call('Page.addScriptToEvaluateOnNewDocument',{source:'(()=>{const raf=window.requestAnimationFrame.bind(window);let fake=0,last=0;window.requestAnimationFrame=cb=>raf(t=>{fake+=(last?t-last:16)*(window.__qaFast?8:1);last=t;cb(fake)})})()'});
   await call('Page.navigate',{url:process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173'});
@@ -59,10 +62,8 @@ try {
     const s=await evaluate('islandGame.roomState()');check(s.open&&s.key===key,'Doctor enters correct room: '+key+(s.open?'':' '+JSON.stringify({room:s,actor:await evaluate('islandGame.getState()'),errors})));
     check(await evaluate('islandGame.audioState().roomKey==='+JSON.stringify(key)),'Room entry selects its contextual soundscape: '+key);
     if(key==='clock'){
-      check(await evaluate('!islandGame.audioState().enabled&&islandGame.audioState().roomEffectsPlayed===0'),'Entering a room respects default mute');
-      await evaluate('(()=>{const original=IslandAudio.prototype.createContext;IslandAudio.prototype.createContext=function(){original.call(this);window.__qaAudio=this;const a=this.context.createAnalyser();a.fftSize=2048;this.effects.connect(a);window.__qaRoomAnalyser=a}})()');
-      await clickUI('.room-sound');await delay(100);
-      check(await evaluate('islandGame.audioState().enabled&&document.querySelector("#sound-toggle").getAttribute("aria-pressed")==="true"&&document.querySelector(".room-sound").getAttribute("aria-pressed")==="true"'),'Room audio control enables and synchronizes both toggles');
+      await delay(60);
+      check(await evaluate('islandGame.audioState().enabled&&document.querySelector("#sound-toggle").getAttribute("aria-pressed")==="true"&&document.querySelector(".room-sound").getAttribute("aria-pressed")==="true"'),'Entering a room keeps default audio enabled and synchronizes both toggles');
       const rms=await evaluate('(()=>{const data=new Float32Array(__qaRoomAnalyser.fftSize);__qaRoomAnalyser.getFloatTimeDomainData(data);return Math.sqrt(data.reduce((s,x)=>s+x*x,0)/data.length)})()');
       check(rms>.00001&&rms<.5,'Room effects produce a bounded audio signal independent of BGM: '+rms);
       await clickUI('.room-sound');await delay(160);
@@ -78,7 +79,8 @@ try {
     check(await evaluate('document.querySelector("#room-title").textContent')===names[key],'Room title matches the selected building');
     check(await evaluate('islandGame.roomState().topic===null&&document.querySelector(".room-content").hidden'),'Entering room shows scene before a topic');
     check(await evaluate('!document.querySelector(".room-number,.room-hotspots")&&[...document.querySelectorAll(".room-stations button")].every(b=>!/^\\d/.test(b.textContent))'),'No numbered room markers');
-    check(await evaluate('document.querySelectorAll(".room-object").length===3'),'Three outlined equipment objects');
+    check(await evaluate('document.querySelectorAll(".room-object").length===1&&document.querySelectorAll(".room-stations button").length===1'),'Each room has exactly one outlined object and one topic');
+    check(await evaluate('!document.querySelector(".room-zoom,.is-zoomed")&&!document.querySelector(".room-stage").getAttribute("aria-label").includes("放大")'),'Room enlargement control and mode are removed: '+key);
     await screenshot('room-'+key+'-overview-v12.png');
     if(key==='clock'){
       await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
@@ -92,16 +94,24 @@ try {
       check(await evaluate('islandGame.roomState().topic===null&&islandGame.roomState().run==="idle"'),'Returning to room cancels a running topic demo');
       await call('Emulation.setTouchEmulationEnabled',{enabled:false});
       await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-      await evaluate('document.querySelector(".room-object[data-station=\\"1\\"]").focus()');
+      await evaluate('document.querySelector(".room-object[data-station=\\"0\\"]").focus()');
       await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
       await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
-      check(await evaluate('islandGame.roomState().topic===1'),'Keyboard Enter opens the focused equipment topic');
+      check(await evaluate('islandGame.roomState().topic===0'),'Keyboard Enter opens the single equipment topic');
       await clickUI('.room-back');
-      check(await evaluate('document.activeElement.matches(".room-object[data-station=\\"1\\"]")'),'Returning restores focus to the selected object');
+      check(await evaluate('document.activeElement.matches(".room-object[data-station=\\"0\\"]")'),'Returning restores focus to the selected object');
     }
     await clickUI('.room-object[data-station="0"]');
     check(await evaluate('islandGame.roomState().topic===0&&!document.querySelector(".room-content").hidden'),'Clicking the illustrated object opens its topic');
     check(await evaluate('islandGame.audioState().lastRoomEffect.type==="select"&&islandGame.audioState().lastRoomEffect.index===0'),'Equipment selection plays a room-specific cue: '+key);
+    check(await evaluate('document.querySelector(".room-stage").hidden&&document.querySelector(".room-detail h3").textContent===IslandRoomTopics['+JSON.stringify(key)+'].title'),'Selecting equipment opens its customer presentation: '+key);
+    check(await evaluate('document.querySelectorAll(".topic-products a").length>0&&document.querySelectorAll(".topic-prepare li").length===3&&document.querySelectorAll(".topic-flow span").length===3&&!!document.querySelector(".topic-diagram svg")'),'Presentation includes product resources, diagram, workflow and preparation checklist: '+key);
+    const filename=path.join(downloads,'otsuka-'+key+'-pcb-checklist.txt');await rm(filename,{force:true});
+    await evaluate('document.querySelector(".topic-download").scrollIntoView({block:"center"})');await clickUI('.topic-download');
+    let briefing='';for(let i=0;i<40;i++){try{briefing=await readFile(filename,'utf8');if(briefing)break;}catch{}await delay(50);}
+    const expected=await evaluate('({title:IslandRoomTopics['+JSON.stringify(key)+'].title,materials:IslandRoomTopics['+JSON.stringify(key)+'].materials})');
+    check(briefing.includes(expected.title)&&expected.materials.every(line=>briefing.includes(line))&&briefing.includes('https://')&&briefing.includes('示意'),'Download provides this room\'s actual customer checklist: '+key);
+    await evaluate('document.querySelector(".room-scroll").scrollTop=0');
     const copy=await evaluate('document.querySelector(".room-content").textContent');
     check(copy.includes('PCB')&&!/機械手臂|鐘樓機構|加工與列印|機械零件/.test(copy),'Room equipment describes EDA and PCB: '+key);
     if(key==='clock'){
@@ -112,39 +122,49 @@ try {
       check(await evaluate('document.querySelector(".room-result").textContent.includes("電錶")'),'Breadboard workflow continues to measurement');
       await delay(1800);
       check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PCB")'),'Confirmed circuit prototype leads to PCB design');
+      check(await evaluate('document.querySelectorAll(".topic-flow .is-done").length===3&&document.querySelector(".topic-figure figcaption").textContent===IslandRoomTopics.clock.after'),'Completed workflow updates the diagram caption and all three stages');
       await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(200);
       check(await evaluate('(()=>{const r=document.querySelector("#room-dialog").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()'),'Breadboard workbench room fits the phone viewport');
       await screenshot('room-design-topic-mobile-v12.png');
       await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
     images.add(await evaluate('document.querySelector("#room-art").src'));
-    if(key==='clock')check(await evaluate('islandGame.audioState().lastRoomEffect.type==="complete"'),'Design workflow plays its completion chime');
+    if(key==='clock')check(await evaluate('islandGame.audioState().roomEventCounts["clock:complete"]>0'),'Design workflow plays its completion chime');
     await evaluate('window.__qaFast=false');await screenshot('room-'+key+'-topic-desktop-v12.png');
     await clickUI('.room-back');
     check(await evaluate('islandGame.roomState().topic===null&&document.querySelector(".room-content").hidden&&islandGame.roomState().run==="idle"'),'Back returns to clean room overview');
-    await clickUI('.room-object[data-station="1"]');
-    check(await evaluate('document.querySelectorAll(".room-objects [data-station]")[1].getAttribute("aria-pressed")==="true"'),'Object outline and topic selection stay in sync');
+    await clickUI('.room-object[data-station="0"]');
+    check(await evaluate('document.querySelector(".room-objects [data-station]").getAttribute("aria-pressed")==="true"'),'Object outline and topic selection stay in sync');
     if(key==='library'){
       await evaluate('document.querySelector(".room-action").click()');await delay(2600);
       check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PASS")'),'PCB validation demo reaches PASS');
       for(const [w,h] of [[320,640],[390,844],[844,390]]){
         await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:true});await delay(200);
         check(await evaluate('(()=>{const d=document.querySelector("#room-dialog"),r=d.getBoundingClientRect(),b=document.querySelector(".room-close").getBoundingClientRect(),a=document.querySelector(".room-sound").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth&&b.width>=44&&b.height>=44&&a.width>=44&&a.height>=44&&a.right<=b.left&&a.left>=r.left})()'),'Room and audio control fit mobile portrait/landscape '+w+'x'+h);
+        check(await evaluate('document.querySelector(".room-scroll").scrollWidth<=document.querySelector(".room-scroll").clientWidth+1'),'Customer topic has no horizontal overflow '+w+'x'+h);
         await screenshot('room-verification-mobile-'+w+'-v12.png');
+        await clickUI('.room-back');
+        check(await evaluate('(()=>{const stage=document.querySelector(".room-stage"),scene=document.querySelector(".room-scene");return !stage.hidden&&stage.clientWidth>0&&stage.scrollWidth<=stage.clientWidth+1&&scene.getBoundingClientRect().width<=stage.clientWidth+1})()'),'Complete room illustration fits without enlargement or horizontal panning '+w+'x'+h);
+        await screenshot('room-verification-overview-mobile-'+w+'-v20.png');
+        await clickUI('.room-object[data-station="0"]');
       }
-      await evaluate('document.querySelector(".room-zoom").click()');
-      check(await evaluate('document.querySelector(".room-stage").scrollWidth>document.querySelector(".room-stage").clientWidth'),'Zoomed room allows detail panning');
       await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
     if(key==='lab'){
+      await call('Emulation.setDeviceMetricsOverride',{width:3840,height:2160,deviceScaleFactor:1,mobile:false});await delay(150);
+      check(await evaluate('document.querySelector(".room-scroll").scrollWidth<=document.querySelector(".room-scroll").clientWidth+1&&parseFloat(getComputedStyle(document.querySelector(".topic-value")).fontSize)>=16'),'Customer topic remains readable and fits the 4K display');
       await evaluate('document.querySelector(".room-action").click()');
       check(await evaluate('document.querySelector(".room-result").textContent.includes("PCB")'),'Simulation starts with PCB design data');
       await delay(2600);
       check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PCB")'),'PCB simulation completes with board analysis results');
+      for(let i=0;i<10;i++){if(await evaluate('getComputedStyle(document.querySelector(".topic-eye-after")).opacity==="1"'))break;await delay(80);}
+      check(await evaluate('getComputedStyle(document.querySelector(".topic-eye-after")).opacity==="1"'),'Completed simulation reveals its comparison illustration');
+      await screenshot('room-simulation-topic-4k-v20.png');
+      await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     }
     if(key==='workshop'){
       await evaluate('document.querySelector(".room-action").click()');await delay(2600);
-      check(await evaluate('islandGame.audioState().lastRoomEffect.type==="complete"'),'Workshop demo plays its completion chime');
+      check(await evaluate('islandGame.audioState().roomEventCounts["workshop:complete"]>0'),'Workshop demo plays its completion chime');
       await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
       await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     }else await evaluate('document.querySelector(".room-close").click()');
