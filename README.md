@@ -6,7 +6,7 @@
 
 ## 開啟測試
 
-直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、`outlines.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角只有「完整小島」與「工具」兩個按鈕；開啟工具後可看到「互動測試版 14」與動態開關。已開啟舊頁面時請按 Ctrl+F5 更新。
+直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`life.js`、`rooms.js`、`outlines.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角只有「完整小島」與「工具」兩個按鈕；開啟工具後可看到「互動測試版 15」與動態開關。已開啟舊頁面時請按 Ctrl+F5 更新。
 
 也可以在此資料夾執行 `node serve.mjs`，開啟 <http://127.0.0.1:4173>。
 
@@ -29,6 +29,8 @@ node serve.mjs --host 0.0.0.0
 手機瀏覽器輸入終端機列出的 `Phone (same Wi-Fi)` 網址。這是區域網路預覽，不會上傳到 GitHub。測試結束在終端機按 Ctrl+C 關閉；若電腦防火牆詢問，僅允許私人網路連線。
 
 ## 操作
+
+第十五版將博士主動／自動揮手時的文字氣泡改為 21 句隨機 EDA 招呼語，涵蓋 HyperLynx、PADS、Xpedition、proFPGA、GerbTool、Valor NPI、Valor PP，各三句。每輪洗牌後逐句使用，輪完才重新洗牌，且跨輪不連續重複。氣泡顯示約 5.5 秒，依手機／桌機／4K 視窗換行與限制位置；博士開始走路或進屋時收起。完整清單與產品定位參考見 [greetings-v15.md](greetings-v15.md)；修改句子可編輯 `game.js` 開頭的 `EDA_GREETINGS`。
 
 - 右下角 ☰：開啟／收起地點、縮放、跟隨、光影時間、揮手與動態控制。這些控制只在需要時顯示。
 - 右下角 ⛶ 或鍵盤 R：回到放大至視窗可容納範圍的完整小島。

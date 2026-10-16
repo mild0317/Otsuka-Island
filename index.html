@@ -11,7 +11,7 @@
   <script src="outlines.js?v=14" defer></script>
   <script src="life.js?v=14" defer></script>
   <script src="rooms.js?v=14" defer></script>
-  <script src="game.js?v=14" defer></script>
+  <script src="game.js?v=15" defer></script>
 </head>
 <body>
   <header class="header"><a class="brand" href="./" aria-label="Otsuka Island 首頁"><span class="brand-mark">O<span>✦</span></span><span>OTSUKA ISLAND</span></a></header>
@@ -51,11 +51,12 @@
           <div class="doctor-info"><div class="doctor-name">塚博士</div><p><i id="status-dot"></i><span id="status" role="status">正在享受島上的微風</span></p></div>
           <button id="wave" class="wave-button" title="和博士打招呼（G）" aria-label="和博士揮手打招呼">✋</button>
         </section>
-        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 14</span></div>
+        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 15</span></div>
         <p class="controls-help">點建築進屋，點地面散步。<br>拖曳探索 · <span id="zoom-hint">滾輪縮放</span></p>
       </div>
     </section>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="doctor-speech" class="sr-only" role="status" aria-live="polite"></div>
   </main>
 </body>
 </html>

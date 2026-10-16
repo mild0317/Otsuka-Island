@@ -5,6 +5,30 @@
   const $ = (selector) => document.querySelector(selector);
   const W = 1143, H = 2048;
   const WALK_SPEED = 200;
+  const EDA_GREETINGS = Object.freeze([
+    'HI~你知道HyperLynx是什麼嗎？',
+    '走線互相干擾？讓 HyperLynx 幫忙看看！',
+    '電源穩不穩？一起用 HyperLynx 分析吧！',
+    'HI~一起用 PADS，把電路想法變成 PCB！',
+    '原理圖畫好了嗎？到 PADS 接著佈局吧！',
+    '元件怎麼擺、線怎麼走？一起探索 PADS！',
+    'HI~複雜的 PCB，想試試 Xpedition 嗎？',
+    '走線限制好多？來看看 Xpedition 怎麼管理！',
+    '多人一起設計 PCB？認識一下 Xpedition！',
+    'HI~你知道 proFPGA 的原型驗証能做什麼嗎？',
+    '晶片還沒做好，也能先用 proFPGA 驗証喔！',
+    '軟硬體能配合嗎？用 proFPGA 提早試試！',
+    'HI~Gerber 輸出後，用 GerbTool 再檢查吧！',
+    '銅箔、鑽孔對齊了嗎？用 GerbTool 看看！',
+    '怕漏接或短路？用 GerbTool 比對網表吧！',
+    'HI~交給工廠前，先用 Valor NPI 做 DFM！',
+    '設計也好製造嗎？用 Valor NPI 查查！',
+    '元件間距夠嗎？讓 Valor NPI 幫忙檢查！',
+    'HI~從 PCB 設計到產線，認識一下 Valor PP！',
+    'SMT 程式怎麼準備？一起看看 Valor PP！',
+    'BOM、組裝資料對上了嗎？用 Valor PP 看看！'
+  ]);
+  let greetingBag = [], previousGreeting = -1;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
@@ -14,7 +38,7 @@
   let life;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
-  const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0 };
+  const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0, speech: '', speechUntil: 0 };
   let width = 0, height = 0, baseScale = 1, ready = false, clock = 0, lastTime = 0;
   let toastUntil = 0, marker = null, pendingGreeting = false, lastStatus = '';
   const pointers = new Map();
@@ -138,7 +162,7 @@
     document.querySelectorAll('.place').forEach(b => b.classList.toggle('active', b.dataset.place === target.key));
     if (distance(actor, target.point) < 3) { if (target.key) beginEntry(target.key); else greet(); return; }
     actor.route = findPath(actor, target);
-    actor.wave = 0; actor.idle = 0; pendingGreeting = false;
+    actor.wave = 0; actor.idle = 0; pendingGreeting = false; clearSpeech();
     marker = { ...target.point, time: clock };
     status(`正在走向${target.name}`, true);
     $('#wave').disabled = false;
@@ -153,8 +177,16 @@
     if (actor.route.length) { pendingGreeting = true; toast('等博士走到目的地，再和你打招呼！'); return; }
     if (!motionEnabled) setMotion(true);
     actor.wave = 3.2; actor.idle = 0; actor.nextWave = rand(8, 14);
-    status('嗨！很高興和你一起散步'); $('#wave').disabled = true;
+    if (!greetingBag.length) {
+      greetingBag = EDA_GREETINGS.map((_,i) => i);
+      for (let i=greetingBag.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [greetingBag[i],greetingBag[j]]=[greetingBag[j],greetingBag[i]]; }
+      if (greetingBag.at(-1) === previousGreeting) [greetingBag[0],greetingBag[greetingBag.length-1]]=[greetingBag.at(-1),greetingBag[0]];
+    }
+    previousGreeting = greetingBag.pop(); actor.speech = EDA_GREETINGS[previousGreeting]; actor.speechUntil = clock + 5.5;
+    $('#doctor-speech').textContent = actor.speech;
+    status(actor.speech); $('#wave').disabled = true;
   }
+  function clearSpeech() { actor.speech = ''; actor.speechUntil = 0; $('#doctor-speech').textContent = ''; }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -453,14 +485,31 @@
     drawClothing(view, armAngles, gait);
     piece(view.head, [view.cx, 401], Math.sin(animationTime * 1.75 + .5) * .009 - waveEnvelope * .065, 0, -breath * 4);
     ctx.restore();
-    if (waving) {
-      ctx.save(); ctx.font = '500 18px "Microsoft JhengHei", sans-serif';
-      ctx.textAlign = 'center'; ctx.fillStyle = '#fffdf5';
-      ctx.beginPath(); ctx.roundRect(actor.x - 56, actor.y - 197, 112, 34, 17); ctx.fill();
-      ctx.fillStyle = '#44634b'; ctx.fillText('嗨，你好呀！', actor.x, actor.y - 174); ctx.restore();
+    if (actor.speech && clock < actor.speechUntil) drawSpeech();
+  }
+  function drawSpeech() {
+    const center=screenCenter(), anchorX=(actor.x-camera.x)*camera.scale+center.x;
+    const anchorY=(actor.y-174-camera.y)*camera.scale+center.y;
+    if(anchorX < -40 || anchorX > width+40 || anchorY < -80 || anchorY > height+100) return;
+    ctx.save(); const dpr=canvas.width/width; ctx.setTransform(dpr,0,0,dpr,0,0);
+    const font=clamp(width/160,14,22), lineHeight=font*1.5, maxTextWidth=Math.min(400,width-56);
+    ctx.font=`500 ${font}px "Microsoft JhengHei",sans-serif`;
+    const lines=[]; let line='';
+    for(const token of actor.speech.match(/[A-Za-z0-9]+|[^A-Za-z0-9]/gu)) {
+      if(line && ctx.measureText(line+token).width>maxTextWidth){lines.push(line.trim());line=token.trimStart();}else line+=token;
     }
+    if(line)lines.push(line.trim());
+    const bubbleWidth=Math.max(...lines.map(text=>ctx.measureText(text).width))+28;
+    const bubbleHeight=lines.length*lineHeight+16;
+    const x=clamp(anchorX-bubbleWidth/2,12,width-bubbleWidth-12),y=clamp(anchorY-bubbleHeight-10,10,height-bubbleHeight-12);
+    ctx.fillStyle='#fffdf5f5'; ctx.shadowColor='#29483e26';ctx.shadowBlur=12;ctx.shadowOffsetY=2;
+    ctx.beginPath();ctx.roundRect(x,y,bubbleWidth,bubbleHeight,16);ctx.fill();
+    ctx.shadowBlur=0;ctx.shadowOffsetY=0;ctx.fillStyle='#44634b';ctx.textAlign='center';ctx.textBaseline='middle';
+    lines.forEach((text,i)=>ctx.fillText(text,x+bubbleWidth/2,y+8+lineHeight*(i+.5)));
+    ctx.restore();
   }
   function beginEntry(key) {
+    clearSpeech();
     pendingRoom = null; pendingGreeting = false; actor.route = []; actor.wave = 0; actor.idle = 0;
     const door = places[key].door;
     actor.facing = actor.heading = Math.atan2(door.y-actor.y, door.x-actor.x);
@@ -468,6 +517,7 @@
     status(`正在走進${places[key].name}`, true); $('#wave').disabled = true;
   }
   function update(dt) {
+    if(actor.speech && clock >= actor.speechUntil) clearSpeech();
     updateLighting();
     life.update(animationTime, actor);
     if (roomExperience.key) return;
@@ -670,7 +720,7 @@
   window.islandGame = Object.freeze({
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
-    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
+    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
     isWalkable: p => !!ground(p, 22),
     sceneSnapshot: () => life?.snapshot(),
