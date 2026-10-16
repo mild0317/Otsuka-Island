@@ -91,7 +91,7 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, cleanWorkshop, birdSheet, validationArt, isWalkable, random = Math.random }) {
+  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, isWalkable, random = Math.random }) {
     const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
     nativeContext.drawImage(original, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
@@ -128,15 +128,23 @@
       const { texture, box } = replacement;
       nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
     }
+    if (edaArt) {
+      const regions = [
+        [[431,462],[523,413],[526,499],[535,501],[659,540],[670,585],[563,635],[424,582]],
+        [[631,848],[695,820],[781,790],[864,816],[922,837],[1011,893],[1017,975],[978,1018],[843,1066],[618,966]],
+        [[696,1018],[790,1018],[790,1102],[696,1102]],
+        [[805,1269],[869,1269],[890,1326],[854,1346],[796,1320]]
+      ];
+      for (const vertices of regions) {
+        const { texture, box } = softPatch(vertices, edaArt, 1.5);
+        nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
+      }
+    }
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
       { pivot: [749, 606], phase: 1.9, poly: [[695,450],[710,420],[740,404],[770,397],[794,391],[822,403],[838,426],[840,460],[832,483],[840,514],[831,541],[811,567],[778,579],[744,575],[721,551],[699,522],[693,491]] },
       { pivot: [127, 1014], phase: 4.1, poly: [[31,856],[42,837],[72,826],[104,814],[141,815],[161,829],[174,851],[171,877],[153,904],[141,931],[116,949],[83,965],[58,962],[38,938],[30,907]] }
     ].map(tree => ({ ...tree, patch: softPatch(tree.poly, native, 4) }));
-    const robotPatches = [
-      [[751,883],[784,882],[812,914],[817,938],[795,942],[779,932],[756,938],[751,912]],
-      [[845,916],[882,909],[898,929],[901,956],[881,958],[869,946],[843,947]]
-    ].map(p => softPatch(p, cleanWorkshop, 2.5));
     function drawBase(t, g = ctx) {
       // The complete, high-resolution island remains underneath every tree patch.
       // Feathered moving leaves cannot punch a transparent polygon seam into it.
@@ -186,51 +194,15 @@
       }
     }
 
-    function link(g, a, b, width) {
-      const dx = b.x - a.x, dy = b.y - a.y, length = Math.hypot(dx, dy), nx = -dy / length, ny = dx / length;
-      g.lineCap = 'round';
-      g.beginPath(); g.moveTo(a.x + 1.3, a.y + 2); g.lineTo(b.x + 1.3, b.y + 2); g.strokeStyle = '#28302d35'; g.lineWidth = width + 2; g.stroke();
-      const gradient = g.createLinearGradient(a.x - nx * width / 2, a.y - ny * width / 2, a.x + nx * width / 2, a.y + ny * width / 2);
-      gradient.addColorStop(0, '#8e9a96'); gradient.addColorStop(.26, '#e5e6db'); gradient.addColorStop(.58, '#f5f2e8'); gradient.addColorStop(1, '#a5afaa');
-      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.lineWidth = width; g.strokeStyle = gradient; g.stroke();
-      g.beginPath(); g.moveTo(lerp(a.x,b.x,.15)-nx*width*.23,lerp(a.y,b.y,.15)-ny*width*.23); g.lineTo(lerp(a.x,b.x,.82)-nx*width*.23,lerp(a.y,b.y,.82)-ny*width*.23); g.lineWidth = .7; g.strokeStyle = '#ffffff99'; g.stroke();
-    }
-    function hub(g, p, r) {
-      const gradient = g.createRadialGradient(p.x-2,p.y-2,1,p.x,p.y,r);
-      gradient.addColorStop(0,'#f1eee2'); gradient.addColorStop(.6,'#b8c1ba'); gradient.addColorStop(1,'#717d78');
-      g.fillStyle=gradient; g.beginPath(); g.ellipse(p.x,p.y,r,r*.84,-.2,0,Math.PI*2); g.fill();
-      g.fillStyle='#66706d'; g.beginPath(); g.ellipse(p.x+.9,p.y,r*.48,r*.45,0,0,Math.PI*2); g.fill();
-      g.fillStyle='#dadfd5'; g.beginPath(); g.arc(p.x+.4,p.y-.6,1.2,0,Math.PI*2); g.fill();
-    }
-    function rotate(v, a) { return point(v.x*Math.cos(a)-v.y*Math.sin(a),v.x*Math.sin(a)+v.y*Math.cos(a)); }
-    function robotPose(t, index) {
-      const base = index ? point(891,966) : point(774,950), shoulder = index ? point(890,951) : point(775,938);
-      const a = Math.sin(t * .72 + index * 2) * .14, b = Math.sin(t * .89 + index * 1.8) * .22;
-      const v1 = rotate(index ? point(-8,-29) : point(-4,-41),a), elbow=point(shoulder.x+v1.x,shoulder.y+v1.y);
-      const v2 = rotate(index ? point(-28,16) : point(29,26),a+b), wrist=point(elbow.x+v2.x,elbow.y+v2.y);
-      return {base,shoulder,elbow,wrist,grip:.65+Math.sin(t*1.2+index)*.3};
-    }
-    function drawRobot(t,index) {
-      const {base,shoulder,elbow,wrist,grip}=robotPose(t,index);
-      ctx.save();
-      ctx.fillStyle='#424b46';ctx.beginPath();ctx.ellipse(base.x,base.y,12,6,-.2,0,Math.PI*2);ctx.fill();
-      link(ctx,point(base.x,base.y-3),shoulder,12);hub(ctx,shoulder,7.3);
-      link(ctx,shoulder,elbow,index?9:10);hub(ctx,elbow,6);
-      link(ctx,elbow,wrist,index?7.6:8.8);hub(ctx,wrist,4.5);
-      const angle=Math.atan2(wrist.y-elbow.y,wrist.x-elbow.x);
-      ctx.translate(wrist.x,wrist.y);ctx.rotate(angle);
-      ctx.strokeStyle='#727f79';ctx.lineWidth=2;ctx.lineCap='round';
-      for(const sign of [-1,1]){ctx.beginPath();ctx.moveTo(3,sign*2);ctx.lineTo(7,sign*(2+grip*2));ctx.lineTo(10,sign*grip);ctx.stroke();}
-      ctx.restore();
-    }
     const screens = [
-      {quad:[[692,873],[705,867],[705,876],[692,882]],kind:'bars',phase:0},
-      {quad:[[738,841],[753,835],[754,851],[739,858]],kind:'graph',phase:2},
-      {quad:[[800,812],[821,812],[821,826],[800,826]],kind:'graph',phase:4},
-      {quad:[[893,873],[904,878],[904,887],[893,883]],kind:'bars',phase:6},
-      {quad:[[832,1257],[867,1257],[868,1285],[831,1285]],kind:'graph',phase:1},
-      {quad:[[771,1279],[803,1264],[803,1295],[770,1310]],kind:'bars',phase:3},
-      {quad:[[923,1273],[944,1286],[946,1306],[924,1293]],kind:'bars',phase:5},
+      {quad:[[693,868],[710,861],[710,875],[693,884]],kind:'graph',phase:0},
+      {quad:[[724,836],[768,814],[768,846],[724,868]],kind:'pcb',phase:2},
+      {quad:[[800,807],[859,820],[859,849],[800,836]],kind:'pcb',phase:4},
+      {quad:[[909,875],[923,880],[923,888],[909,883]],kind:'graph',phase:6},
+      {quad:[[935,877],[976,899],[976,922],[935,900]],kind:'pcb',phase:3},
+      {quad:[[832,1257],[867,1257],[868,1285],[831,1285]],kind:'thermal',phase:1},
+      {quad:[[771,1279],[803,1264],[803,1295],[770,1310]],kind:'eye',phase:3},
+      {quad:[[923,1273],[944,1286],[946,1306],[924,1293]],kind:'thermal',phase:5},
       {quad:[[278,1008],[324,1025],[324,1072],[278,1055]],kind:'pcb',phase:0,occlusion:[[309,1047],[321,1051],[322,1070],[309,1065]]},
       {quad:[[342,1033],[396,1052],[396,1093],[342,1074]],kind:'pass',phase:2}
     ];
@@ -245,6 +217,28 @@
         g.beginPath();for(let x=0;x<=128;x+=2){const y=43+Math.sin(x*.09-phase*2)*13+Math.sin(x*.25+phase)*6;if(x)g.lineTo(x,y);else g.moveTo(x,y);}
         g.strokeStyle='#75eb9d';g.lineWidth=2;g.shadowColor='#62e8a0';g.shadowBlur=3;g.stroke();g.shadowBlur=0;
         const scan=(phase*23)%128;g.fillStyle='#b7ffcc50';g.fillRect(scan,0,1,80);
+      }else if(screen.kind==='eye'){
+        g.strokeStyle='#79e8c0';g.lineWidth=1.2;
+        for(let n=0;n<9;n++){
+          g.beginPath();
+          for(let x=4;x<124;x++){
+            const envelope=Math.cos((x-64)*Math.PI/120),y=37+Math.sin(n*1.8)*envelope*25+Math.sin(x*.11+phase+n)*2;
+            if(x===4)g.moveTo(x,y);else g.lineTo(x,y);
+          }
+          g.globalAlpha=.45+n*.05;g.stroke();
+        }
+        g.globalAlpha=1;g.font='8px monospace';g.fillStyle='#c8ffdf';g.fillText('PCB SI',7,74);
+      }else if(screen.kind==='thermal'){
+        g.fillStyle='#143f86';g.fillRect(12,7,102,58);
+        for(const [x,y,r] of [[48,28,27],[87,42,21]]){
+          const hot=g.createRadialGradient(x,y,1,x,y,r+Math.sin(phase)*2);
+          hot.addColorStop(0,'#ed544a');hot.addColorStop(.3,'#ffbc36');hot.addColorStop(.65,'#52cc87');hot.addColorStop(1,'#28a8c200');
+          g.fillStyle=hot;g.fillRect(12,7,102,58);
+        }
+        g.strokeStyle='#acffe38a';g.lineWidth=1;
+        for(let i=0;i<8;i++){g.beginPath();g.moveTo(17+i*12,12);g.lineTo(17+i*12,57);g.stroke();}
+        g.fillStyle='#173c42';g.fillRect(38,20,19,16);g.fillRect(79,34,16,13);
+        g.font='8px monospace';g.fillStyle='#c8ffdf';g.fillText('PCB TEMP / PI',7,76);
       }else if(screen.kind==='pcb'||screen.kind==='pass'){
         const boardWidth=screen.kind==='pass'?64:128;
         g.fillStyle='#102a25';g.fillRect(0,0,128,80);
@@ -257,7 +251,7 @@
         g.fillStyle='#172c29';g.fillRect(boardWidth*.32,27,boardWidth*.38,27);
         g.strokeStyle='#a9f5be';g.strokeRect(boardWidth*.32,27,boardWidth*.38,27);
         g.font='7px monospace';g.fillStyle='#c6ffd8';g.fillText('PCB',boardWidth*.37,44);
-        g.fillStyle='#baffd335';g.fillRect((phase*18)%boardWidth,0,2,80);
+        g.fillStyle='#baffd399';g.fillRect((phase*18)%boardWidth,0,3,80);
         if(screen.kind==='pass'){
           g.fillStyle='#10372f';g.fillRect(65,0,63,80);
           g.font='bold 19px monospace';g.textAlign='center';g.fillStyle='#92fcae';g.fillText('PASS',96,45);
@@ -273,8 +267,7 @@
       ctx.transform((b[0]-a[0])/128,(b[1]-a[1])/128,(d[0]-a[0])/80,(d[1]-a[1])/80,a[0],a[1]);ctx.drawImage(display,0,0);ctx.restore();
     }
     function drawInteriors(t) {
-      for(const {texture,box} of robotPatches) ctx.drawImage(texture,box.x,box.y,box.w,box.h);
-      drawRobot(t,0);drawRobot(t,1); screens.forEach(screen=>drawScreen(screen,t));
+      screens.forEach(screen=>drawScreen(screen,t));
     }
     function drawBirds(t) {
       for(const bird of birds.birds){
@@ -306,7 +299,7 @@
     return {
       drawBase,drawWater,drawInteriors,drawBirds,
       update(t,actor){time=t;birds.update(t,actor);},
-      snapshot(){return{resolution:{width:native.width,height:native.height},birds:birds.snapshot(),robotPoses:[robotPose(time,0),robotPose(time,1)]};},
+      snapshot(){return{resolution:{width:native.width,height:native.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
       treeCoverage
     };
   }

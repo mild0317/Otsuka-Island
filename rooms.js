@@ -2,46 +2,50 @@
   'use strict';
   const rooms = {
     clock: {
-      name: '設計工作室', en: 'DESIGN STUDIO', number: '01', image: 'assets/room-design-v7.jpg', theme: 'blue',
-      intro: '在鐘樓下，把第一個靈感畫成可以實現的藍圖。', action: '展開設計流程', result: '設計藍圖已就緒',
+      name: '設計工作室', en: 'EDA DESIGN STUDIO', number: '01', image: 'assets/room-design-v8.jpg', theme: 'blue',
+      intro: '從電路原理圖到 PCB 佈局，讓每一條連線都有清楚的起點。', action: '檢視 PCB 設計流程', result: '原理圖與 PCB 佈局已就緒',
+      steps: ['繪製電路原理圖', '配置元件與 PCB 走線', '檢視層疊與設計資料'],
       stations: [
-        ['藍圖繪製桌', '從草圖、尺寸到電路配置，將想法整理成完整設計。', 38, 55],
-        ['CAD 設計站', '檢視零件、電路與組裝關係，讓每個細節彼此吻合。', 80, 53],
-        ['鐘樓機構', '齒輪與鐘面延續外面的鐘樓，提醒我們為每個好點子留一點時間。', 64, 20]
+        ['電路原理圖', '以 IC、電阻、電容與網路連線，表達電路的功能與連接關係。', 38, 55],
+        ['PCB 佈局佈線', '在 EDA 畫面中配置元件、規劃走線，並檢視焊盤、過孔與銅層。', 80, 53],
+        ['PCB 層疊與元件', '透過板圖、層疊資料與元件封裝，整理這塊 PCB 的設計內容。', 64, 20]
       ]
     },
     workshop: {
-      name: '製作工坊', en: 'FABRICATION WORKSHOP', number: '02', image: 'assets/room-workshop-v7.jpg', theme: 'copper',
-      intro: '木樑與紅磚之間，讓藍圖成為可以拿在手上的原型。', action: '啟動製作示意', result: '原型組裝完成',
+      name: '製作工坊', en: 'PCB PROTOTYPING WORKSHOP', number: '02', image: 'assets/room-workshop-v8.jpg', theme: 'copper',
+      intro: '把 EDA 設計資料帶到工作台，製作、焊接與檢視 PCB 原型。', action: '體驗 PCB 打樣流程', result: 'PCB 原型準備完成',
+      steps: ['檢視 PCB 製作資料', '配置電子元件與焊接', '檢視 PCB 原型'],
       stations: [
-        ['機械手臂工作台', '兩座工作台分工完成零件取放與原型組裝。', 45, 58],
-        ['加工與列印區', '以小型加工設備與 3D 列印，探索零件的形狀與配合。', 76, 49],
-        ['電子裝配台', '整理元件、焊接電路，再把製作完成的板件交給驗証工作室。', 25, 43]
+        ['PCB 打樣工作台', '防靜電工作墊上放著實體 PCB、元件料盤與焊接工具，將電路設計做成板件。', 43, 58],
+        ['焊接與檢視區', '以焊台、放大鏡與電子檢視設備，觀察 PCB 元件及焊點。', 76, 49],
+        ['元件與製作資料', '對照元件清單、封裝與板圖，整理打樣所需的電子元件與資料。', 25, 43]
       ]
     },
     library: {
-      name: '驗証工作室', en: 'VALIDATION STUDIO', number: '03', image: 'assets/room-verification-v7.jpg', theme: 'green',
-      intro: '拱窗灑下的光，照亮電路上的每一條連線與每一次確認。', action: '執行 PCB 驗証', result: 'PASS · 驗証完成',
+      name: '驗証工作室', en: 'PCB VALIDATION STUDIO', number: '03', image: 'assets/room-verification-v7.jpg', theme: 'green',
+      intro: '兩台 EDA 工作站，對同一塊 PCB 進行設計規則檢查與量測比對。', action: '執行 PCB 驗証', result: 'PASS · PCB 驗証完成',
+      steps: ['PCB 設計規則檢查', 'PCB 電路量測比對', '確認 PCB 驗証結果'],
       stations: [
-        ['PCB 電路工作站', '第一台電腦檢視 PCB 線路、焊盤與元件配置。', 40, 37],
-        ['PASS 驗証工作站', '第二台電腦顯示電路檢查結果；按下按鈕，體驗一次驗証流程。', 76, 46],
-        ['電路量測台', '示波器、探針與測試治具，將畫面上的電路對照實際板件。', 54, 39]
+        ['PCB 規則檢查站', '第一台電腦檢視 PCB 板圖，檢查走線間距、過孔與連線等設計規則。', 40, 37],
+        ['PCB PASS 結果站', '第二台電腦呈現這塊 PCB 的檢查結果；按下按鈕，體驗從檢查到 PASS 的驗証示意。', 76, 46],
+        ['PCB 電路量測台', '以示波器、探針與治具量測實體 PCB，將波形和板件上的測試點比對。', 54, 39]
       ]
     },
     lab: {
-      name: '模擬實驗室', en: 'SIMULATION LAB', number: '04', image: 'assets/room-simulation-v7.jpg', theme: 'teal',
-      intro: '在玻璃圓頂裡，先讓可能性發生，再帶著答案回到現實。', action: '執行模擬示意', result: '模擬運算完成',
+      name: '模擬實驗室', en: 'PCB SIMULATION LAB', number: '04', image: 'assets/room-simulation-v8.jpg', theme: 'teal',
+      intro: '模擬對象就是 PCB：從訊號與電源完整性，到板上的溫度分布。', action: '執行 PCB 模擬', result: 'PCB 訊號／電源／熱模擬完成',
+      steps: ['載入 PCB 板圖與層疊', '分析 PCB 訊號與電源', '檢視 PCB 熱分布結果'],
       stations: [
-        ['數位分身投影台', '中央的線框模型，呈現設計在虛擬空間裡的樣貌。', 50, 53],
-        ['工程模擬控制台', '以網格、波形與色彩分布，觀察不同設定下的變化。', 26, 43],
-        ['運算與資料區', '沿著圓頂排列的工作站，讓每次模擬都有可以回顧的記錄。', 76, 44]
+        ['PCB 板件投影台', '中央呈現佈滿 IC、過孔與銅走線的 PCB，色彩顯示板件的模擬溫度分布。', 50, 53],
+        ['PCB 訊號完整性', '以 PCB 走線與眼圖檢視訊號傳輸，觀察串擾、反射與訊號品質的示意。', 26, 43],
+        ['PCB 電源與熱分析', '檢視 PCB 的電源分布、電流密度與熱點，所有分析都以電路板為對象。', 76, 44]
       ]
     }
   };
 
   class IslandRooms {
     constructor({ onClose } = {}) {
-      this.onClose = onClose; this.key = null; this.timer = null; this.run = 'idle';
+      this.onClose = onClose; this.key = null; this.timer = null; this.run = 'idle'; this.step = 0;
       const dialog = document.createElement('dialog');
       dialog.id = 'room-dialog'; dialog.className = 'room-dialog';
       dialog.setAttribute('aria-labelledby', 'room-title');
@@ -68,7 +72,7 @@
               <div class="room-detail" aria-live="polite"><strong></strong><p></p></div>
               <div class="room-action-row"><button class="room-action"></button><span class="room-result" role="status">準備就緒</span></div>
               <div class="room-progress" aria-hidden="true"><span></span></div>
-              <p class="room-footnote">房間設備與操作為互動展示。點選編號，看看博士的介紹。</p>
+              <p class="room-footnote">EDA／PCB 流程互動示意。點選編號看介紹；此展示未執行實際板件分析。</p>
             </section>
           </div>
         </article>`;
@@ -125,14 +129,20 @@
     simulate() {
       if (!this.key || this.run === 'running') return;
       this.run = 'running'; this.dialog.dataset.run = 'running'; this.$('.room-action').disabled = true;
-      this.$('.room-result').textContent = this.key === 'library' ? '線路檢查 → 量測比對 → 結果確認…' : '博士正在操作設備…';
-      this.timer = setTimeout(() => {
+      this.step = 0;
+      const advance = () => {
         if (!this.key) return;
-        this.run = 'complete'; this.dialog.dataset.run = 'complete';
-        this.$('.room-result').textContent = rooms[this.key].result;
-        this.$('.room-action').disabled = false; this.$('.room-action').textContent = '再體驗一次';
-        this.timer = null;
-      }, 2400);
+        const room = rooms[this.key];
+        if (this.step < room.steps.length) {
+          this.$('.room-result').textContent = `${this.step+1}/3 · ${room.steps[this.step++]}…`;
+          this.timer = setTimeout(advance, 800);
+        } else {
+          this.run = 'complete'; this.dialog.dataset.run = 'complete';
+          this.$('.room-result').textContent = room.result;
+          this.$('.room-action').disabled = false; this.$('.room-action').textContent = '再體驗一次'; this.timer = null;
+        }
+      };
+      advance();
     }
     setMotion(enabled) { this.dialog.classList.toggle('room-paused', !enabled); }
     close() {

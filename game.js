@@ -8,7 +8,7 @@
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
-  const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), cleanWorkshop = new Image(), birdSheet = new Image(), validationArt = new Image();
+  const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image();
   let life;
   const camera = { x: W / 2, y: H / 2, zoom: 1, scale: 1, follow: false };
   const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0 };
@@ -640,10 +640,10 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(cleanWorkshop, 'assets/workshop-clean.png'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg')]).then(() => {
+  Promise.all([load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg')]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, cleanWorkshop, birdSheet, validationArt, isWalkable: p => !!ground(p, 22) });
+    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, isWalkable: p => !!ground(p, 22) });
     roomExperience.setCharacter(sprites);
     ready = true; $('#loading').classList.add('done'); draw();
   }).catch(error => {

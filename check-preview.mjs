@@ -39,14 +39,14 @@ try {
   check(await evaluate('islandGame.getState().ready'), 'All local image assets loaded');
   await delay(800); await screenshot('desktop.png');
   check(await evaluate('islandGame.getState().reducedMotion && islandGame.getState().motionEnabled'), 'Requested animation plays even with OS reduced motion enabled');
-  await evaluate(`window.sampleRegion=(rect)=>{const c=document.querySelector('canvas'),p=islandGame.worldToScreen({x:rect[0],y:rect[1]}),q=islandGame.worldToScreen({x:rect[0]+rect[2],y:rect[1]+rect[3]}),ratio=c.width/c.clientWidth;return c.getContext('2d').getImageData(Math.floor(p.x*ratio),Math.floor(p.y*ratio),Math.max(1,Math.ceil((q.x-p.x)*ratio)),Math.max(1,Math.ceil((q.y-p.y)*ratio))).data};window.motionRects={cloud:[850,365,300,180],water:[455,770,32,65],foam:[435,846,75,45],doctor:[565,1380,120,160],coat:[590,1498,28,30],screen:[738,835,17,24],robot:[750,883,65,62],tree:[258,330,155,180]};window.motionSamples=Object.fromEntries(Object.entries(motionRects).map(([k,r])=>[k,sampleRegion(r)]));`);
+  await evaluate(`window.sampleRegion=(rect)=>{const c=document.querySelector('canvas'),p=islandGame.worldToScreen({x:rect[0],y:rect[1]}),q=islandGame.worldToScreen({x:rect[0]+rect[2],y:rect[1]+rect[3]}),ratio=c.width/c.clientWidth;return c.getContext('2d').getImageData(Math.floor(p.x*ratio),Math.floor(p.y*ratio),Math.max(1,Math.ceil((q.x-p.x)*ratio)),Math.max(1,Math.ceil((q.y-p.y)*ratio))).data};window.motionRects={cloud:[850,365,300,180],water:[455,770,32,65],foam:[435,846,75,45],doctor:[565,1380,120,160],coat:[590,1498,28,30],screen:[738,835,17,24],pcb:[278,1008,46,64],tree:[258,330,155,180]};window.motionSamples=Object.fromEntries(Object.entries(motionRects).map(([k,r])=>[k,sampleRegion(r)]));`);
   await delay(1400);
   const differences = await evaluate(`Object.fromEntries(Object.entries(motionRects).map(([k,r])=>{const a=motionSamples[k],b=sampleRegion(r);let changed=0;for(let i=0;i<a.length;i+=4){if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>18)changed++}return[k,changed]}))`);
   check(differences.cloud > 150, `Rendered cloud pixels visibly move (${differences.cloud} pixels)`);
   check(differences.water > 10, `Thin flowing highlights animate over the static water (${differences.water} changed pixels)`);
   check(differences.foam === 0, `Original splash stays static (${differences.foam} changed pixels)`);
   check(differences.screen > 3, `Screen content changes (${differences.screen} pixels)`);
-  check(differences.robot > 20, `Articulated robot changes pose (${differences.robot} pixels)`);
+  check(differences.pcb > 3, `PCB monitor content animates (${differences.pcb} pixels)`);
   check(differences.tree > 10, `Leaves visibly move (${differences.tree} pixels)`);
   check(differences.doctor > 30, `Idle breathing changes the rendered doctor silhouette (${differences.doctor} pixels)`);
   check(differences.coat > 3, `Idle coat tails visibly flutter (${differences.coat} pixels)`);

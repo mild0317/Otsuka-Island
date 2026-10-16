@@ -34,7 +34,7 @@ try {
   await call('Page.addScriptToEvaluateOnNewDocument',{source:'(()=>{const raf=window.requestAnimationFrame.bind(window);let fake=0,last=0;window.requestAnimationFrame=cb=>raf(t=>{fake+=(last?t-last:16)*(window.__qaFast?8:1);last=t;cb(fake)})})()'});
   await call('Page.navigate',{url:process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173'});
   for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(150);}
-  check(await evaluate('window.islandGame?.getState().ready'),'Island v07 and assets load');
+  check(await evaluate('window.islandGame?.getState().ready'),'Island v08 and assets load');
   check(await evaluate('[...document.querySelectorAll(".place strong")].map(x=>x.textContent).join()')==='設計工作室,製作工坊,驗証工作室,模擬實驗室','Four room names follow the top-to-bottom island order');
   const canvasRect=await evaluate('(()=>{const r=document.querySelector("#world").getBoundingClientRect();return{x:r.x,y:r.y}})()');
   const tapWorld=async p=>{const s=await evaluate('islandGame.worldToScreen('+JSON.stringify(p)+')');await click(s.x+canvasRect.x,s.y+canvasRect.y)};
@@ -58,8 +58,10 @@ try {
     for(let i=0;i<80;i++){if(await evaluate('islandGame.roomState().imageReady'))break;await delay(100);}
     check(await evaluate('islandGame.roomState().imageReady'),'Room illustration loaded: '+key);
     check(await evaluate('document.querySelector("#room-title").textContent')===names[key],'Room title matches the selected building');
+    const copy=await evaluate('document.querySelector(".room-content").textContent');
+    check(copy.includes('PCB')&&!/機械手臂|鐘樓機構|加工與列印|機械零件/.test(copy),'Room equipment describes EDA and PCB: '+key);
     images.add(await evaluate('document.querySelector("#room-art").src'));
-    await evaluate('window.__qaFast=false');await screenshot('room-'+key+'-desktop-v7.png');
+    await evaluate('window.__qaFast=false');await screenshot('room-'+key+'-desktop-v8.png');
     await evaluate('document.querySelectorAll(".room-stations [data-station]")[1].click()');
     check(await evaluate('document.querySelectorAll(".room-hotspots [data-station]")[1].getAttribute("aria-pressed")==="true"'),'Equipment buttons and scene hotspots select together');
     if(key==='library'){
@@ -68,11 +70,17 @@ try {
       for(const [w,h] of [[320,640],[390,844],[844,390]]){
         await call('Emulation.setDeviceMetricsOverride',{width:w,height:h,deviceScaleFactor:1,mobile:true});await delay(200);
         check(await evaluate('(()=>{const d=document.querySelector("#room-dialog"),r=d.getBoundingClientRect(),b=document.querySelector(".room-close").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&d.scrollWidth<=d.clientWidth&&b.width>=44&&b.height>=44})()'),'Room fits mobile portrait/landscape '+w+'x'+h);
-        await screenshot('room-verification-mobile-'+w+'-v7.png');
+        await screenshot('room-verification-mobile-'+w+'-v8.png');
       }
       await evaluate('document.querySelector(".room-zoom").click()');
       check(await evaluate('document.querySelector(".room-stage").scrollWidth>document.querySelector(".room-stage").clientWidth'),'Zoomed room allows detail panning');
       await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+    }
+    if(key==='lab'){
+      await evaluate('document.querySelector(".room-action").click()');
+      check(await evaluate('document.querySelector(".room-result").textContent.includes("PCB")'),'Simulation starts with PCB design data');
+      await delay(2600);
+      check(await evaluate('islandGame.roomState().run==="complete"&&document.querySelector(".room-result").textContent.includes("PCB")'),'PCB simulation completes with board analysis results');
     }
     if(key==='workshop'){
       await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
@@ -84,7 +92,7 @@ try {
   check(images.size===4,'Each building opens a different room illustration');
   await evaluate('window.__qaFast=false;document.querySelector("#fit").click()');
   const p=await evaluate('(()=>{const p=islandGame.worldToScreen({x:285,y:1080}),r=document.querySelector("#world").getBoundingClientRect();return{x:p.x+r.x,y:p.y+r.y}})()');
-  await call('Input.dispatchMouseEvent',{type:'mouseWheel',x:p.x,y:p.y,deltaX:0,deltaY:-1100});await delay(300);await screenshot('verification-exterior-v7.png');
+  await call('Input.dispatchMouseEvent',{type:'mouseWheel',x:p.x,y:p.y,deltaX:0,deltaY:-1100});await delay(300);await screenshot('verification-exterior-v8.png');
   check(errors.length===0,'No browser errors: '+JSON.stringify(errors));
   await call('Browser.close');
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}
