@@ -92,7 +92,7 @@ try {
   const walking = await evaluate('islandGame.getState()');
   check(walking.selectedBuilding === 'clock', 'Building click activates its foggy white outline');
   await screenshot('selected-building.png');
-  check(walking.moving && walking.phase > 0 && Math.hypot(walking.x-idleBefore.x,walking.y-idleBefore.y) > 30 && Math.hypot(walking.x-idleBefore.x,walking.y-idleBefore.y) < 160, 'Doctor walks continuously at controlled speed');
+  check(walking.moving && walking.phase > 0 && Math.hypot(walking.x-idleBefore.x,walking.y-idleBefore.y) > 80 && Math.hypot(walking.x-idleBefore.x,walking.y-idleBefore.y) < 280, 'Doctor walks continuously at the faster pace');
   // Retarget by an actual pointer click on a reachable part of the lower plaza.
   const targetScreen = await evaluate('islandGame.worldToScreen({x:625,y:1540})');
   const canvasRect = await evaluate('(()=>{const r=document.querySelector("canvas").getBoundingClientRect();return {x:r.x,y:r.y}})()');

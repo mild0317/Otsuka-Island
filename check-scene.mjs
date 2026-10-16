@@ -60,6 +60,12 @@ try {
   check(await evaluate('!document.querySelector("#island-controls").hidden'),'Phone touch opens controls');
   await touchElement('[data-place=clock]');
   check(await evaluate('document.querySelector("#island-controls").hidden&&islandGame.roomState().pending==="clock"&&islandGame.getState().moving'),'Choosing a room starts walking and automatically clears the view');
+  await evaluate('window.walkSample=()=>{const s=islandGame.getState();let p=s,remaining=0;for(const q of s.route){remaining+=Math.hypot(q.x-p.x,q.y-p.y);p=q}return{remaining,time:performance.now(),phase:s.phase}}');
+  const startWalk=await evaluate('walkSample()');let safe=true;
+  for(let i=0;i<12;i++){await delay(100);safe=safe&&await evaluate('islandGame.isWalkable(islandGame.getState())');}
+  const endWalk=await evaluate('walkSample()'),walked=startWalk.remaining-endWalk.remaining,pace=walked/((endWalk.time-startWalk.time)/1000);
+  check(safe&&pace>175&&pace<225,'Faster walking stays on paving at about 200 units per second: '+pace.toFixed(1));
+  check(endWalk.phase>startWalk.phase,'Footsteps continue while the doctor moves faster');
   const zoomBefore=await evaluate('islandGame.getState().zoom');
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:130,y:400,id:0},{x:240,y:400,id:1}]});await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:100,y:400,id:0},{x:270,y:400,id:1}]});await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   check(await evaluate('islandGame.getState().zoom')>zoomBefore*1.3,'Two-finger pinch works with the UI hidden');

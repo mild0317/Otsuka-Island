@@ -34,7 +34,7 @@ try {
   await call('Page.addScriptToEvaluateOnNewDocument',{source:'(()=>{const raf=window.requestAnimationFrame.bind(window);let fake=0,last=0;window.requestAnimationFrame=cb=>raf(t=>{fake+=(last?t-last:16)*(window.__qaFast?8:1);last=t;cb(fake)})})()'});
   await call('Page.navigate',{url:process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173'});
   for(let i=0;i<100;i++){if(await evaluate('window.islandGame?.getState().ready'))break;await delay(150);}
-  check(await evaluate('window.islandGame?.getState().ready'),'Island v10 and assets load');
+  check(await evaluate('window.islandGame?.getState().ready'),'Island and assets load');
   check(await evaluate('[...document.querySelectorAll(".place strong")].map(x=>x.textContent).join()')==='設計工作室,製作工坊,驗証工作室,模擬實驗室','Four room names follow the top-to-bottom island order');
   const canvasRect=await evaluate('(()=>{const r=document.querySelector("#world").getBoundingClientRect();return{x:r.x,y:r.y}})()');
   const tapWorld=async p=>{const s=await evaluate('islandGame.worldToScreen('+JSON.stringify(p)+')');await click(s.x+canvasRect.x,s.y+canvasRect.y)};

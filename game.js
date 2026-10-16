@@ -4,6 +4,7 @@
   const ctx = canvas.getContext('2d');
   const $ = (selector) => document.querySelector(selector);
   const W = 1143, H = 2048;
+  const WALK_SPEED = 200;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
@@ -17,7 +18,7 @@
   let toastUntil = 0, marker = null, pendingGreeting = false, lastStatus = '';
   const pointers = new Map();
   let gesture = null;
-  let selectedBuilding = null;
+  let selectedBuilding = null, selectionTime = 0;
   let pendingRoom = null, entry = null;
   const roomExperience = new IslandRooms({ onClose(key) {
     entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
@@ -129,7 +130,9 @@
   function goTo(target) {
     if (!ready || roomExperience.key) return;
     entry = null; pendingRoom = target.key || null;
-    selectedBuilding = target.key || null;
+    const nextSelection = target.key || null;
+    if (selectedBuilding !== nextSelection) selectionTime = clock;
+    selectedBuilding = nextSelection;
     actor.route = []; actor.destination = target.name;
     document.querySelectorAll('.place').forEach(b => b.classList.toggle('active', b.dataset.place === target.key));
     if (distance(actor, target.point) < 3) { if (target.key) beginEntry(target.key); else greet(); return; }
@@ -473,7 +476,7 @@
     actor.gait += ((moving ? 1 : 0) - actor.gait) * Math.min(1, dt * 10);
     actor.turn = Math.max(0, actor.turn - dt * 3.5);
     if (moving) {
-      let budget = dt * 115;
+      let budget = dt * WALK_SPEED;
       while (budget > 0 && actor.route.length) {
         const goal = actor.route[0], d = distance(actor, goal);
         if (d < .1) { actor.route.shift(); continue; }
@@ -622,28 +625,37 @@
   }
   function drawBuildingMist() {
     if (!selectedBuilding) return;
-    const outline = places[selectedBuilding].hit;
-    const t = animationTime;
-    const pulse = .8 + Math.sin(t * 1.7) * .15;
-    ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    ctx.beginPath(); polygon(outline);
-    ctx.strokeStyle = `rgba(255,255,255,${pulse * .65})`;
-    ctx.lineWidth = 9; ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 18; ctx.stroke();
-    ctx.shadowBlur = 5; ctx.lineWidth = 2.8; ctx.strokeStyle = '#fffdf3ef'; ctx.stroke();
-    // A translucent lifted rim and slow wisps give the selected facade a foggy relief.
-    ctx.translate(0, -4 - Math.sin(t) * 2); ctx.lineWidth = 6; ctx.shadowBlur = 12;
-    ctx.strokeStyle = `rgba(255,255,255,${.18 * pulse})`; ctx.stroke();
-    if (motionEnabled) {
-      for (let i = 0; i < 16; i++) {
-        const at = (t * .025 + i / 16) % 1;
-        const segment = at * outline.length, n = Math.floor(segment), a = outline[n], b = outline[(n + 1) % outline.length], f = segment - n;
-        const rise = ((t * .21 + i * .37) % 1);
-        const x = a[0] + (b[0] - a[0]) * f + Math.sin(i * 4 + t) * 5;
-        const y = a[1] + (b[1] - a[1]) * f - rise * 24;
-        ctx.beginPath(); ctx.arc(x, y, 3 + rise * 7, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${(1 - rise) * .12})`; ctx.fill();
-      }
+    const place = places[selectedBuilding], outline = place.hit;
+    if (!place.rim) {
+      const rim = new Path2D();
+      outline.forEach((p, i) => {
+        const before = outline[(i + outline.length - 1) % outline.length], after = outline[(i + 1) % outline.length];
+        const incoming = Math.hypot(p[0]-before[0],p[1]-before[1]), outgoing = Math.hypot(after[0]-p[0],after[1]-p[1]);
+        const radius = Math.min(6, incoming*.22, outgoing*.22);
+        const a = P(p[0]+(before[0]-p[0])*radius/incoming,p[1]+(before[1]-p[1])*radius/incoming);
+        const b = P(p[0]+(after[0]-p[0])*radius/outgoing,p[1]+(after[1]-p[1])*radius/outgoing);
+        if (!i) rim.moveTo(a.x,a.y); else rim.lineTo(a.x,a.y);
+        rim.quadraticCurveTo(p[0],p[1],b.x,b.y);
+      });
+      rim.closePath(); place.rim = rim;
     }
+    const fade = smooth((clock-selectionTime)/.3), breath = .88 + Math.sin(animationTime*1.2)*.08;
+    const line = clamp(1.1/camera.scale,.55,4);
+    const ys = outline.map(p=>p[1]), xs = outline.map(p=>p[0]);
+    const sheen = ctx.createLinearGradient(Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys));
+    sheen.addColorStop(0,'#fffef8f5'); sheen.addColorStop(.45,'#fff8e8cc'); sheen.addColorStop(1,'#ecf4e6aa');
+    ctx.save(); ctx.globalAlpha = fade*breath; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // One attached rim with a soft halo keeps the miniature architecture readable.
+    ctx.lineWidth = line*3.2; ctx.strokeStyle = '#fff8e82b';
+    ctx.shadowColor = '#fff8e8'; ctx.shadowBlur = 9; ctx.stroke(place.rim);
+    ctx.shadowColor = '#27433744'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 1;
+    ctx.lineWidth = line; ctx.strokeStyle = sheen; ctx.stroke(place.rim);
+    ctx.shadowOffsetY = 0; ctx.shadowBlur = 0;
+    const entrance = nodes[place.node];
+    const glow = ctx.createRadialGradient(entrance.x,entrance.y,3,entrance.x,entrance.y,45);
+    glow.addColorStop(0,'#fff4d537'); glow.addColorStop(1,'#fff4d500');
+    ctx.translate(entrance.x,entrance.y); ctx.scale(1,.36); ctx.fillStyle=glow;
+    ctx.translate(-entrance.x,-entrance.y); ctx.beginPath(); ctx.arc(entrance.x,entrance.y,45,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
   function frame(time) {
@@ -667,6 +679,7 @@
   requestAnimationFrame(frame);
   // A read-only snapshot helps verify routing and idle behavior without altering play.
   window.islandGame = Object.freeze({
+    walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
     getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
