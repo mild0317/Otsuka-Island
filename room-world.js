@@ -17,19 +17,20 @@
     return Math.min(toSegment(a,c,d),toSegment(b,c,d),toSegment(c,a,b),toSegment(d,a,b));
   }
   const coworkers={
-    clock:{name:'小公主',asset:'princess',x:560,y:775,height:260,frames:[[78,47,418,907],[562,45,397,909],[1051,43,397,913]]},
-    library:{name:'Hank',asset:'hank',x:610,y:685,height:270,frames:[[111,18,387,968],[619,23,397,963],[1125,38,385,948]]},
-    lab:{name:'安東尼',asset:'anthony',x:1125,y:665,height:210,frames:[[1121,52,370,901],[1121,52,370,901],[1121,52,370,901]]},
+    clock:{name:'小公主',asset:'princess',x:560,y:800,height:330,frames:[[78,47,418,907]]},
+    library:{name:'Hank',asset:'hank',x:625,y:745,height:310,frames:[[171,39,702,1424]],direction:'upper-left'},
+    lab:{name:'安東尼',asset:'anthony',x:1125,y:715,height:300,frames:[[1121,52,370,901]]},
   };
   // Reserve each coworker's feet in the same navigation used by doctor and cat.
   for(const [key,p] of Object.entries(coworkers))layouts[key].obstacles.push([[p.x-29,p.y-17],[p.x+29,p.y-17],[p.x+35,p.y+4],[p.x+25,p.y+19],[p.x-25,p.y+19],[p.x-35,p.y+4]]);
   function drawCoworker(g,p,image,time){
     if(!image?.complete||!image.naturalWidth||!p.frames.length)return;
-    const cycle=[0,1,0,2],phase=time/2.7,slot=Math.floor(phase)%4,blend=Math.max(0,Math.min(1,((phase%1)-.72)/.28));
+    // One intact pose, animated continuously about planted feet. No frame swaps
+    // or overlapping body images: every working/looking/breathing cycle eases.
+    const work=Math.sin(time*.72),breath=Math.sin(time*1.7),look=Math.sin(time*.37);
     g.save();g.fillStyle='#47322226';g.beginPath();g.ellipse(p.x,p.y+2,27,8,0,0,Math.PI*2);g.fill();
-    g.translate(p.x,p.y);g.transform(1,0,Math.sin(time*.62)*.004,1+Math.sin(time*1.7)*.0035,0,0);
-    const paint=(index,alpha)=>{if(alpha<=0)return;const [x,y,w,h]=p.frames[index],scale=p.height/h;g.globalAlpha=alpha;g.drawImage(image,x,y,w,h,-w*scale/2,-p.height,w*scale,p.height);};
-    paint(cycle[slot],1);paint(cycle[(slot+1)%4],blend);g.restore();
+    g.translate(p.x,p.y);g.transform(1,0,work*.009+look*.002,1+breath*.004,0,0);
+    const [x,y,w,h]=p.frames[0],scale=p.height/h;g.drawImage(image,x,y,w,h,-w*scale/2,-p.height,w*scale,p.height);g.restore();
   }
   const cache=new Map();
   function navigation(key){
@@ -40,16 +41,17 @@
     const nodes=[],indices=new Map(),step=20;
     for(let y=520;y<=960;y+=step)for(let x=220;x<=1400;x+=step){const p={x,y};if(isWalkable(p)){indices.set(x+','+y,nodes.length);nodes.push({...p,links:[]});}}
     nodes.forEach(p=>{for(const [dx,dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]){const i=indices.get((p.x+dx*step)+','+(p.y+dy*step));if(i!==undefined&&clear(p,nodes[i]))p.links.push(i);}});
-    function findPath(start,target){
+    function findPath(start,target,people=[]){
+      const safe=(a,b)=>clear(a,b)&&(!people.length||IslandCatTerrain.peopleClear(a,b,people,64));
       if(!isWalkable(start)||!isWalkable(target))return null;
-      if(clear(start,target))return [{...target}];
-      const near=p=>nodes.map((n,i)=>({i,d:distance(p,n)})).filter(n=>n.d<90).sort((a,b)=>a.d-b.d).filter(n=>clear(p,nodes[n.i])).slice(0,8);
+      if(safe(start,target))return [{...target}];
+      const near=p=>nodes.map((n,i)=>({i,d:distance(p,n)})).filter(n=>n.d<90).sort((a,b)=>a.d-b.d).filter(n=>safe(p,nodes[n.i])).slice(0,8);
       const beginnings=near(start),ends=near(target),goals=new Set(ends.map(n=>n.i)),costs=nodes.map(()=>Infinity),previous=nodes.map(()=>-1),open=new Set();
       beginnings.forEach(n=>{costs[n.i]=n.d;open.add(n.i);});let end=-1;
-      while(open.size){let current=-1,best=Infinity;for(const i of open){const cost=costs[i]+distance(nodes[i],target);if(cost<best){best=cost;current=i;}}open.delete(current);if(goals.has(current)){end=current;break;}for(const next of nodes[current].links){const candidate=costs[current]+distance(nodes[current],nodes[next]);if(candidate<costs[next]){costs[next]=candidate;previous[next]=current;open.add(next);}}}
+      while(open.size){let current=-1,best=Infinity;for(const i of open){const cost=costs[i]+distance(nodes[i],target);if(cost<best){best=cost;current=i;}}open.delete(current);if(goals.has(current)){end=current;break;}for(const next of nodes[current].links){if(people.length&&!IslandCatTerrain.peopleClear(nodes[current],nodes[next],people,64))continue;const candidate=costs[current]+distance(nodes[current],nodes[next]);if(candidate<costs[next]){costs[next]=candidate;previous[next]=current;open.add(next);}}}
       if(end<0)return null;
       const route=[{...target}];for(let i=end;i>=0;i=previous[i])route.unshift({x:nodes[i].x,y:nodes[i].y});
-      const smooth=[];let at=start;while(route.length){let far=route.length-1;while(far>0&&!clear(at,route[far]))far--;at=route[far];smooth.push(at);route.splice(0,far+1);}return smooth;
+      const smooth=[];let at=start;while(route.length){let far=route.length-1;while(far>0&&!safe(at,route[far]))far--;at=route[far];smooth.push(at);route.splice(0,far+1);}return smooth;
     }
     const result={layout,isWalkable,findPath,nodes};cache.set(key,result);return result;
   }
@@ -58,6 +60,7 @@
       this.coworker=coworkers[key]||null;this.coworkerImages=coworkerImages;
       this.key=key;this.canvas=canvas;this.art=art;this.renderCharacter=renderCharacter;this.onArrive=onArrive;this.cat=cat;this.nav=navigation(key);this.layout=this.nav.layout;this.pendingStation=null;this.hold=0;this.marker=null;this.time=0;this.topicOpen=false;
       this.actor={...point(this.layout.spawn),route:[],phase:0,gait:0,facing:0,heading:0,turn:0,wave:0,idle:0,nextWave:8+Math.random()*8,lookAt:false};
+      if(cat?.location===key&&cat.z<295){const body={x:cat.x,y:cat.y+cat.z};if(distance(this.actor,body)<70){const free=this.nav.nodes.filter(p=>distance(p,body)>=75&&distance(p,this.actor)<150&&this.nav.findPath(this.actor,p)).sort((a,b)=>distance(a,this.actor)-distance(b,this.actor))[0];if(free){this.actor.x=free.x;this.actor.y=free.y;}}}
     }
     cancel(){this.actor.route=[];this.pendingStation=null;this.marker=null;this.hold=0;this.actor.lookAt=false;}
     walkTo(target,station=null){
@@ -68,7 +71,7 @@
     update(dt,motion=true){
       this.time+=motion?dt:0;const a=this.actor,moving=a.route.length>0;
       a.gait+=((moving?1:0)-a.gait)*Math.min(1,dt*12);a.turn=Math.max(0,a.turn-dt*4);
-      if(!this.topicOpen&&moving){let budget=dt*230;while(budget>0&&a.route.length){const goal=a.route[0],d=distance(a,goal);if(d<.1){a.route.shift();continue;}const angle=Math.atan2(goal.y-a.y,goal.x-a.x);if(Math.abs(Math.atan2(Math.sin(angle-a.heading),Math.cos(angle-a.heading)))>.65)a.turn=1;a.heading=angle;a.facing+=Math.atan2(Math.sin(angle-a.facing),Math.cos(angle-a.facing))*Math.min(1,dt*12);const step=Math.min(budget,d),next={x:a.x+(goal.x-a.x)*step/d,y:a.y+(goal.y-a.y)*step/d};if(!this.nav.isWalkable(next)){this.cancel();break;}a.x=next.x;a.y=next.y;a.phase+=step*.065;budget-=step;if(step>=d){a.route.shift();a.x=goal.x;a.y=goal.y;}}}
+      if(!this.topicOpen&&moving){let budget=dt*230;while(budget>0&&a.route.length){const goal=a.route[0],d=distance(a,goal);if(d<.1){a.route.shift();continue;}const angle=Math.atan2(goal.y-a.y,goal.x-a.x);if(Math.abs(Math.atan2(Math.sin(angle-a.heading),Math.cos(angle-a.heading)))>.65)a.turn=1;a.heading=angle;a.facing+=Math.atan2(Math.sin(angle-a.facing),Math.cos(angle-a.facing))*Math.min(1,dt*12);const step=Math.min(budget,d),next={x:a.x+(goal.x-a.x)*step/d,y:a.y+(goal.y-a.y)*step/d};if(!this.nav.isWalkable(next)){this.cancel();break;}if(this.cat&&!this.cat.allowsPersonStep(a,next,this.key))break;a.x=next.x;a.y=next.y;a.phase+=step*.065;budget-=step;if(step>=d){a.route.shift();a.x=goal.x;a.y=goal.y;}}}
       if(!this.topicOpen&&!a.route.length){this.marker=null;if(this.pendingStation!==null){const look=point(this.layout.equipment.lookAt),heading=Math.atan2(look.y-a.y,look.x-a.x);a.lookAt=true;a.facing+=Math.atan2(Math.sin(heading-a.facing),Math.cos(heading-a.facing))*Math.min(1,dt*12);this.hold+=dt;if(this.hold>=.38){const index=this.pendingStation;this.pendingStation=null;this.topicOpen=true;this.onArrive(index);}}else if(motion){a.idle+=dt;if(a.wave>0)a.wave=Math.max(0,a.wave-dt);else if(a.idle>a.nextWave){a.wave=3.2;a.idle=0;a.nextWave=10+Math.random()*9;}}}
       this.draw();
     }
@@ -80,7 +83,7 @@
       if(this.coworker)entities.push({actor:this.coworker,draw:()=>drawCoworker(g,this.coworker,this.coworkerImages?.[this.coworker.asset],this.time)});
       if(this.cat?.location===this.key)entities.push({actor:this.cat,draw:()=>this.cat.draw(g,this.key,rect.width/1536)});
       entities.sort((a,b)=>a.actor.y-b.actor.y);
-      for(const entity of entities){entity.draw();for(const mask of this.layout.occluders){const x=entity.actor.x,front=mask.front;let depth=-Infinity;for(let i=1;i<front.length;i++){const [ax,ay]=front[i-1],[bx,by]=front[i];if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}}if(entity.actor.y>=depth||!this.art.naturalWidth)continue;g.save();g.beginPath();mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();g.drawImage(this.art,0,0,1536,1024);g.restore();}}
+      for(const entity of entities){entity.draw();if(entity.actor===this.cat&&this.cat.z>35)continue;for(const mask of this.layout.occluders){const x=entity.actor.x,front=mask.front;let depth=-Infinity;for(let i=1;i<front.length;i++){const [ax,ay]=front[i-1],[bx,by]=front[i];if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}}if(entity.actor.y>=depth||!this.art.naturalWidth)continue;g.save();g.beginPath();mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();g.drawImage(this.art,0,0,1536,1024);g.restore();}}
     }
     snapshot(){return{actor:{...this.actor,route:this.actor.route.map(p=>({...p}))},pendingStation:this.pendingStation,arrivalHold:this.hold,equipment:{outline:this.layout.equipment.outline,target:point(this.layout.equipment.target)},spawn:point(this.layout.spawn),speed:230,coworkers:this.coworker?[{name:this.coworker.name,x:this.coworker.x,y:this.coworker.y,working:true,animationTime:this.time}]:[]};}
   }
