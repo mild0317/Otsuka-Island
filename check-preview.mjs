@@ -127,17 +127,20 @@ try {
   for (const [mobileWidth,mobileHeight] of [[320,640],[390,844],[430,932]]) {
     await call('Emulation.setDeviceMetricsOverride', { width: mobileWidth, height: mobileHeight, deviceScaleFactor: 1, mobile: true });
     await delay(400);
+    await evaluate('if(document.querySelector("#island-controls").hidden)document.querySelector("#ui-toggle").click()');
     check(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `Mobile ${mobileWidth}px stays within viewport`);
     check(await evaluate('[...document.querySelectorAll(".place,#wave,.map-tools button")].every(b=>{const r=b.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&r.width>=44&&r.height>=44})'), `Mobile ${mobileWidth}px destinations, waving and zoom controls have visible 44px touch targets`);
     check(await evaluate('(()=>{const a=document.querySelector(".doctor-card").getBoundingClientRect(),b=document.querySelector(".map-tools").getBoundingClientRect();return a.right<=b.left||a.left>=b.right||a.bottom<=b.top||a.top>=b.bottom})()'), `Mobile ${mobileWidth}px controls do not overlap`);
     await screenshot(`mobile-${mobileWidth}.png`);
   }
   await call('Emulation.setTouchEmulationEnabled', {enabled:true,maxTouchPoints:2});
+  await evaluate('document.querySelector("#controls-close").click()');
   const zoomBeforePinch = await evaluate('islandGame.getState().zoom');
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:140,y:400,id:0},{x:230,y:400,id:1}]});
   await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:115,y:400,id:0},{x:255,y:400,id:1}]});
   await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   check(await evaluate(`islandGame.getState().zoom > ${zoomBeforePinch} * 1.2`), 'Mobile two-finger pinch changes the actual map zoom');
+  await evaluate('document.querySelector("#ui-toggle").click()');
   const buttonPoint = await evaluate('(()=>{const r=document.querySelector("[data-place=library]").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...buttonPoint,id:0}]});
   await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});

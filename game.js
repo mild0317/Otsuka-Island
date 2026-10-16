@@ -10,7 +10,8 @@
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
   let life;
-  const camera = { x: W / 2, y: H / 2, zoom: 1, scale: 1, follow: false };
+  const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
+  const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
   const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0 };
   let width = 0, height = 0, baseScale = 1, ready = false, clock = 0, lastTime = 0;
   let toastUntil = 0, marker = null, pendingGreeting = false, lastStatus = '';
@@ -21,7 +22,7 @@
   const roomExperience = new IslandRooms({ onClose(key) {
     entry = null; pendingRoom = null; actor.idle = 0; actor.nextWave = rand(4, 8);
     status(`已走出${places[key].name}`); $('#wave').disabled = false;
-    document.querySelector(`[data-place="${key}"]`).focus({ preventScroll: true });
+    $('#ui-toggle').focus({ preventScroll: true });
   } });
   let previewHour = null, timeStamp = -1;
   const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -141,7 +142,7 @@
   function visit(key) {
     const place = places[key];
     goTo({ point: { ...nodes[place.node] }, anchors: [place.node], area: areas.find(a => a.anchor === place.node), name: place.name, key });
-    toast(`一起去${place.name}吧！`);
+    setControls(false, true);
   }
   function greet() {
     if (!ready || actor.wave || entry || roomExperience.key) return;
@@ -157,11 +158,11 @@
     const dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    baseScale = Math.min(height / H * (width <= 760 ? (height < 620 ? .78 : .9) : 1.025), width / W * (width <= 760 ? .88 : .58));
+    baseScale = Math.min((height - 32) / islandView.height, (width - (width <= 760 ? 20 : 40)) / islandView.width);
     camera.scale = baseScale * camera.zoom;
     $('#zoom-hint').textContent = width <= 760 ? '雙指縮放' : '滾輪縮放';
   }
-  const screenCenter = () => P(width * (width > 1050 ? .51 : .5), height * (width <= 760 ? (height < 620 ? .51 : .48) : .485));
+  const screenCenter = () => P(width / 2, height / 2);
   function worldPoint(x, y) { const c = screenCenter(); return P((x - c.x) / camera.scale + camera.x, (y - c.y) / camera.scale + camera.y); }
   function zoomBy(factor, at = screenCenter()) {
     const before = worldPoint(at.x, at.y);
@@ -172,7 +173,19 @@
     $('#zoom-value').textContent = `${Math.round(camera.zoom * 100)}%`;
     $('.experience').classList.toggle('exploring', camera.zoom > 1.18);
   }
-  function fit() { camera.x = W / 2; camera.y = H / 2; camera.zoom = 1; camera.scale = baseScale; setFollow(false); $('#zoom-value').textContent = '100%'; $('.experience').classList.remove('exploring'); }
+  function fit() { camera.x = islandView.x; camera.y = islandView.y; camera.zoom = 1; camera.scale = baseScale; setFollow(false); $('#zoom-value').textContent = '100%'; $('.experience').classList.remove('exploring'); }
+  function setControls(open, restoreFocus = false) {
+    $('#island-controls').hidden = !open;
+    $('#ui-toggle').setAttribute('aria-expanded', String(open));
+    $('#ui-toggle').setAttribute('aria-label', open ? '收起工具與地點' : '開啟工具與地點');
+    if (open) $('#controls-close').focus({ preventScroll: true });
+    else if (restoreFocus) $('#ui-toggle').focus({ preventScroll: true });
+  }
+  $('#ui-toggle').addEventListener('click', () => setControls($('#island-controls').hidden, true));
+  $('#controls-close').addEventListener('click', () => setControls(false, true));
+  document.addEventListener('pointerdown', event => {
+    if (!$('#island-controls').hidden && !$('#island-controls').contains(event.target) && !$('#ui-toggle').contains(event.target)) setControls(false);
+  });
   function setFollow(value) { camera.follow = value; $('#follow').setAttribute('aria-pressed', String(value)); }
   function localPoint(event) { const r = canvas.getBoundingClientRect(); return P(event.clientX - r.left, event.clientY - r.top); }
   canvas.addEventListener('pointerdown', event => {
@@ -220,9 +233,9 @@
   canvas.addEventListener('wheel', event => { event.preventDefault(); zoomBy(Math.exp(-event.deltaY * .0014), localPoint(event)); }, { passive: false });
   $('#zoom-in').addEventListener('click', () => zoomBy(1.25));
   $('#zoom-out').addEventListener('click', () => zoomBy(.8));
-  $('#fit').addEventListener('click', fit);
-  $('#follow').addEventListener('click', () => { setFollow(!camera.follow); if (camera.follow && camera.zoom < 1.7) zoomBy(1.8 / camera.zoom); });
-  $('#wave').addEventListener('click', greet);
+  $('#fit').addEventListener('click', () => { fit(); setControls(false); });
+  $('#follow').addEventListener('click', () => { setFollow(!camera.follow); if (camera.follow && camera.zoom < 1.7) zoomBy(1.8 / camera.zoom); setControls(false, true); });
+  $('#wave').addEventListener('click', () => { greet(); setControls(false, true); });
   function setMotion(enabled) {
     motionEnabled = enabled;
     roomExperience.setMotion(enabled);
@@ -234,6 +247,7 @@
   $('#live-time').addEventListener('click', () => { previewHour = null; timeStamp = -1; updateLighting(); });
   document.querySelectorAll('[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
   document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('#island-controls').hidden) { setControls(false, true); return; }
     if (roomExperience.key) return;
     if (event.ctrlKey || event.metaKey || event.altKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
     if (event.key === '+' || event.key === '=') zoomBy(1.25);
