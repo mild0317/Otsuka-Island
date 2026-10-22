@@ -56,7 +56,7 @@
       bones.push({name:'thigh'+i,parent:'pelvis',a:hip,b:knee},{name:'shin'+i,parent:'thigh'+i,a:knee,b:ankle},{name:'foot'+i,parent:'shin'+i,a:ankle,b:add(ankle,[0,0,h*.06])});
       joints['tail'+i]=add(hip,mul(sub(knee,hip),.66));bones.push({name:'coatTail'+i,parent:'pelvis',a:hip,b:joints['tail'+i]});
       const shoulder=add(joints.chest,[side*h*.09,0,0]);
-      let target=[side*h*.12,hipY+h*.025,Math.sin(w.phase+i*Math.PI)*h*.09*s.gait];
+      let target=[side*h*.12,hipY+h*.025,-Math.cos((s.cycle+i*.5)*Math.PI*2)*h*.07*s.gait];
       const contact=w.targetStation?.contact;
       if(contact){const height=clamp(root[1]-contact[1],hipY+h*.08,hipY+h*.3),hands=worldTarget(contact[0]+side*9,contact[1]+Math.sin(w.time*8+i)*1.4,height);target=target.map((v,k)=>mix(v,hands[k],s.work));}
       const scratch=add(joints.neck,[side*h*.075,h*.09,h*.018]);
