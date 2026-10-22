@@ -9,7 +9,7 @@
       times:{work:[12,23],type:[19,34],think:[3,7],inspect:[5,10],rest:[5,10]},
       extras:['nod','stretch','look','scratch']},
     library:{name:'Hank',asset:'hank',height:341,speed:[85,110],start:'bench',habit:'量測、核對紀錄、換站確認 PASS，動作較從容',
-      stations:{bench:station(625,745,535,510,{contact:[555,540],item:{x:554,y:535},prop:'pcb'}),computer:station(610,685,570,430,{chair:true,mode:'bench',seatHip:[732,562],floorY:655,contact:[610,520],back:[[698,485],[747,477],[761,489],[756,552],[742,568],[690,567],[677,554],[684,513]]}),second:station(1055,785,1160,470,{chair:true,seatHip:[1050,640],floorY:741,contact:[1130,580],back:[[976,535],[1017,539],[1051,566],[1060,615],[1045,642],[990,628],[975,599]]}),notes:station(1135,800,1190,550,{contact:[1185,595],item:{x:1185,y:595},prop:'clipboard'}),pause:station(690,865,590,630)},
+      stations:{bench:station(625,745,535,510,{contact:[555,540],item:{x:554,y:535},prop:'pcb'}),computer:station(610,685,570,430,{chair:true,mode:'bench',seatHip:[732,562],floorY:655,contact:[610,520],back:[[698,485],[747,477],[761,489],[756,552],[742,568],[690,567],[677,554],[684,513]]}),second:station(1055,785,1160,470,{chair:true,seatHip:[1050,640],floorY:733,contact:[1130,580],back:[[976,535],[1017,539],[1051,566],[1060,615],[1045,642],[990,628],[975,599]]}),notes:station(1135,800,1190,550,{contact:[1185,595],item:{x:1185,y:595},prop:'clipboard'}),pause:station(690,865,590,630)},
       jobs:[['measure',5],['computer',3],['crosscheck',4],['inspect',3],['record',2],['break',1]],
       times:{work:[13,25],type:[16,27],think:[5,11],inspect:[7,13],rest:[5,9]},extras:['glasses','nod','look','scratch']},
     lab:{name:'安東尼',asset:'anthony',height:330,speed:[80,105],start:'right',habit:'較長時間分析波形，換螢幕比對，盤胸或踱步思考',

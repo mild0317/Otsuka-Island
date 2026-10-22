@@ -18,13 +18,16 @@
   // Contact with the cushion is the underside of the seated pelvis, not its
   // centre. Pinning the centre made the character sink in front of the chair.
   // The pelvis rests on the cushion; the hanging coat hem is not a seat anchor.
-  const hips={hank:[380,780],princess:[370,710],anthony:[380,735]};
+  const hips={hank:[380,760],princess:[370,710],anthony:[380,735]};
+  // Match the intact seated figure to the chair's seat-to-floor distance.
+  // Hank's standing-sheet scale previously required lengthening his shins.
+  const seatedScale=w=>w.height/bounds[w.profile.asset].seats[2][3]*(w.profile.asset==='hank'?1.22:1);
   function seatOffset(w,sign=w.poseSign||(Math.cos(w.heading)<0?-1:1)){
     const station=w.targetStation;if(!station?.seatHip)return station?.seatShift||[0,0];
-    const frames=bounds[w.profile.asset].seats,frame=frames[0],scale=w.height/frames[2][3],mirror=sign===-1?1:-1,hip=hips[w.profile.asset];
+    const frames=bounds[w.profile.asset].seats,frame=frames[0],scale=seatedScale(w),mirror=sign===-1?1:-1,hip=hips[w.profile.asset];
     return [station.seatHip[0]-w.x-(hip[0]-frame[4])*scale*mirror,station.seatHip[1]-w.y-(hip[1]-frame[5])*scale];
   }
-  function description(w,pose,sign=1){const [part,index]=w.profile.asset==='anthony'&&pose==='front'?['portrait',0]:poses[pose]||poses.front,frames=bounds[w.profile.asset][part],frame=frames[index],reference=part==='seats'?frames[2][3]:(frames[1]||frames[0])[3],scale=w.height/reference,base=part==='seats'?-1:part==='views'?(pose==='side'&&w.profile.asset==='hank'?-1:1):w.profile.asset==='anthony'?1:-1,mirror=base===sign?1:-1,amount=pose==='sit'?1:pose==='half'?.5:0,shift=seatOffset(w,sign),head=heads[w.profile.asset][part][index];return {part,index,frame,scale,mirror,top:-frame[3]*scale,head:{x:(head[0]-frame[4])*scale*mirror+shift[0]*amount,y:(head[1]-frame[5])*scale+shift[1]*amount}};}
+  function description(w,pose,sign=1){const [part,index]=w.profile.asset==='anthony'&&pose==='front'?['portrait',0]:poses[pose]||poses.front,frames=bounds[w.profile.asset][part],frame=frames[index],reference=part==='seats'?frames[2][3]:(frames[1]||frames[0])[3],scale=pose==='sit'?seatedScale(w):w.height/reference,base=part==='seats'?-1:part==='views'?(pose==='side'&&w.profile.asset==='hank'?-1:1):w.profile.asset==='anthony'?1:-1,mirror=base===sign?1:-1,amount=pose==='sit'?1:pose==='half'?.5:0,shift=seatOffset(w,sign),head=heads[w.profile.asset][part][index];return {part,index,frame,scale,mirror,top:-frame[3]*scale,head:{x:(head[0]-frame[4])*scale*mirror+shift[0]*amount,y:(head[1]-frame[5])*scale+shift[1]*amount}};}
   function hand(w){const base=w.profile.asset==='anthony'?1:-1,current=w.poseSign||(Math.cos(w.heading)<0?-1:1),old=w.previousSign||current,sign=old+(current-old)*smooth(w.blend);return {x:w.x+sign*29,y:w.y-w.height*.62+Math.sin(w.time*1.7)*.6,base,sign};}
   function triangle(g,image,s,d){
     const [a,b,c]=s,[p,q,r]=d,den=a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y);if(Math.abs(den)<.001)return;
@@ -41,7 +44,7 @@
     const seat=pose==='sit',work=['work','sit'].includes(pose),breath=Math.sin(w.time*1.8)*.8,seatAmount=seat?1:pose==='half'?.5:0,shift=seatOffset(w,sign);
     const handPixels={princess:{sit:[140,510],work:[1100,397]},hank:{sit:[140,560],work:[1115,420]},anthony:{sit:[130,535],work:[1130,435]}},hp=handPixels[w.profile.asset][seat?'sit':'work'];
     const hx=(hp[0]-footX)*d.scale*mirror,hy=(hp[1]-footY)*d.scale,contact=w.targetStation?.contact;
-    const floorY=seat?w.targetStation?.floorY:undefined,extension=Number.isFinite(floorY)?Math.max(-28,floorY-w.y-shift[1]):0;
+    const floorY=seat?w.targetStation?.floorY:undefined,extension=w.profile.asset!=='hank'&&Number.isFinite(floorY)?Math.max(-28,floorY-w.y-shift[1]):0;
     const knots=seat&&extension?(w.profile.asset==='hank'?[735,755,810,815,875,890,900]:[685,750,790,805,815]):[];
     const rowY=[...new Set([...Array.from({length:19},(_,i)=>y+height*i/18),...knots.filter(v=>v>y&&v<y+height)])].sort((a,b)=>a-b),rows=rowY.length-1;
     for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++){
@@ -56,6 +59,9 @@
       dx+=shift[0]*seatAmount;dy+=shift[1]*seatAmount;
       // Extend only the exposed shin, then translate each complete boot/shoe.
       // Pelvis, thighs, coat/skirt and the original shoe shapes stay anchored.
+      // Move the ankle toward the desk with a continuous knee bend. Once past
+      // the ankle the translation is constant, preserving both complete shoes.
+      if(seat&&w.profile.asset==='hank'){dx-=55*d.scale*mirror*smooth((sy-760)/140);}
       if(extension){const rear=sx>245,start=w.profile.asset==='hank'?(rear?815:755):(rear?750:685),end=w.profile.asset==='hank'?(rear?890:875):(rear?805:790);dy+=extension*smooth((sy-start)/(end-start));}
       // Shared vertices deform the intact coat/skirt and both legs together.
       if(work){const weight=Math.exp(-((px-hx)**2/950+(py-hy)**2/650)),tx=contact?Math.max(-18,Math.min(18,contact[0]-w.x-hx-shift[0]*seatAmount)):0,ty=contact?Math.max(-20,Math.min(20,contact[1]-w.y-hy-shift[1]*seatAmount)):0;dx+=weight*(tx+Math.sin(w.time*7.3)*1.0);dy+=weight*(ty+Math.sin(w.time*9.7)*1.2);}
