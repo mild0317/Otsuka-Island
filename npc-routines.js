@@ -4,7 +4,7 @@
   const station=(x,y,lx,ly,extra={})=>({x,y,look:{x:lx,y:ly},...extra});
   const profiles={
     clock:{name:'小公主',asset:'princess',height:363,speed:[105,135],start:'bench',habit:'動手試作、整理零件，偶爾回電腦確認佈線',
-      stations:{bench:station(580,800,540,530,{contact:[510,585],item:{x:530,y:585},prop:'tray'}),computer:station(1185,815,1250,535,{chair:true,seatHip:[1180,710],contact:[1235,615]}),stool:station(665,795,565,530,{chair:true,mode:'bench',seatHip:[660,640],contact:[590,570]}),parts:station(810,760,735,550,{contact:[735,550],item:{x:735,y:550},storage:true,prop:'pcb'}),pause:station(785,885,720,650)},
+      stations:{bench:station(580,800,540,530,{contact:[510,585],item:{x:530,y:585},prop:'tray'}),computer:station(1185,815,1250,535,{chair:true,seatHip:[1168,686],contact:[1235,615]}),stool:station(665,795,565,530,{chair:true,mode:'bench',seatHip:[660,640],contact:[590,570]}),parts:station(810,760,735,550,{contact:[735,550],item:{x:735,y:550},storage:true,prop:'pcb'}),pause:station(785,885,720,650)},
       jobs:[['prototype',5],['computer',2],['organize',4],['inspect',3],['break',1]],
       times:{work:[12,23],type:[19,34],think:[3,7],inspect:[5,10],rest:[5,10]},
       extras:['nod','stretch','look','scratch']},
