@@ -2,6 +2,8 @@
 
 浮空島互動測試版。純 HTML、CSS、JavaScript，沒有外部套件或網路素材。
 
+目前為第 36 版，保留簡化後的固定人物姿勢與自然呼吸。Hank 與小公主依椅面及地板分別校準坐姿，小公主右側椅背會遮擋腰背。設計工作室左下書堆可點選開啟 `copyright.html`，顯示指定版權聲明與右上品牌 Logo；房內時鐘和島上即時／光影預覽時間同步。啟動 `node serve.mjs` 後，執行 `node check-room-details.mjs` 檢查實際鞋底接地像素、椅背遮擋、書堆點選、版權頁、手機／4K 排版及時鐘連動。品牌素材來源見 [brand-logo-source.md](assets/brand-logo-source.md)。
+
 第 26 版將 Hank 改為 21 骨骼的 2.5D 角色，走路、坐下、起身與工作使用同一套骨架；說明與調整位置見 [HANK-RIG.md](HANK-RIG.md)。`node check-hank-rig.mjs` 可檢查骨長、步態與工作站對位。
 
 第 25 版調整人物步態、坐姿與設備面向。三位工作人員放大約 10%，房內塚博士維持原本高度 280。博士衣身到雙腳共用連續網格；`gait.js` 管理左右腳支撐與抬腳週期。工作姿勢改為面向設備的後側視角，按椅面定位完整坐姿，設備光暈留在人物後方，零件盒內 PCB 不再浮在櫃子前。新素材記錄見 [npc-prompts-v24.md](assets/npc-prompts-v24.md)。

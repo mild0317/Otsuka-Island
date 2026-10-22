@@ -581,7 +581,7 @@
     life.update(animationTime, actor);
     islandCat?.update(motionEnabled?dt:0);
     npcLife?.update(motionEnabled?dt:0);
-    if (roomExperience.key) { roomExperience.update(dt); return; }
+    if (roomExperience.key) { roomExperience.update(dt,lighting); return; }
     if (entry) {
       const progress=Math.min(1,entry.progress+dt/1.05),door=places[entry.key].door,from={x:actor.x+(door.x-actor.x)*smooth(entry.progress),y:actor.y+(door.y-actor.y)*smooth(entry.progress)},to={x:actor.x+(door.x-actor.x)*smooth(progress),y:actor.y+(door.y-actor.y)*smooth(progress)};
       if(!islandCat?.allowsPersonStep(from,to,'island'))return;

@@ -17,8 +17,8 @@
   };
   // Contact with the cushion is the underside of the seated pelvis, not its
   // centre. Pinning the centre made the character sink in front of the chair.
-  // Hank's visible seated underside is y=805; y=755 left him about 18px low.
-  const hips={hank:[360,805],princess:[370,710],anthony:[380,735]};
+  // The pelvis rests on the cushion; the hanging coat hem is not a seat anchor.
+  const hips={hank:[345,735],princess:[370,710],anthony:[380,735]};
   function seatOffset(w,sign=w.poseSign||(Math.cos(w.heading)<0?-1:1)){
     const station=w.targetStation;if(!station?.seatHip)return station?.seatShift||[0,0];
     const frames=bounds[w.profile.asset].seats,frame=frames[0],scale=w.height/frames[2][3],mirror=sign===-1?1:-1,hip=hips[w.profile.asset];
@@ -37,12 +37,15 @@
   function mesh(g,w,images,pose,headOffset,sign,alpha){
     const d=description(w,pose,sign),image=images[d.part];if(!image?.naturalWidth||alpha<=0)return;
     const [x,y,width,height,footX,footY]=d.frame,mirror=d.mirror;
-    const cols=8,rows=18,vertices=[],source=[],walking=w.gait??(w.kind==='walk'?Math.min(1,w.speed/60):0),cycle=w.phase;
+    const cols=8,vertices=[],source=[],walking=w.gait??(w.kind==='walk'?Math.min(1,w.speed/60):0),cycle=w.phase;
     const seat=pose==='sit',work=['work','sit'].includes(pose),breath=Math.sin(w.time*1.8)*.8,seatAmount=seat?1:pose==='half'?.5:0,shift=seatOffset(w,sign);
     const handPixels={princess:{sit:[140,510],work:[1100,397]},hank:{sit:[140,560],work:[1115,420]},anthony:{sit:[130,535],work:[1130,435]}},hp=handPixels[w.profile.asset][seat?'sit':'work'];
     const hx=(hp[0]-footX)*d.scale*mirror,hy=(hp[1]-footY)*d.scale,contact=w.targetStation?.contact;
+    const floorY=seat?w.targetStation?.floorY:undefined,extension=Number.isFinite(floorY)?Math.max(0,floorY-w.y-shift[1]):0;
+    const knots=seat&&extension?(w.profile.asset==='hank'?[735,755,810,815,875,890,900]:[685,750,790,805,815]):[];
+    const rowY=[...new Set([...Array.from({length:19},(_,i)=>y+height*i/18),...knots.filter(v=>v>y&&v<y+height)])].sort((a,b)=>a-b),rows=rowY.length-1;
     for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++){
-      const sx=x+width*i/cols,sy=y+height*j/rows,px=(sx-footX)*d.scale*mirror,py=(sy-footY)*d.scale,down=(py-d.top)/(-d.top),lower=smooth((down-(w.profile.asset==='hank'?.70:.56))/.44),side=Math.tanh(px/8),swing=Math.sin(cycle+side*Math.PI*.5)*walking;
+      const sx=x+width*i/cols,sy=rowY[j],px=(sx-footX)*d.scale*mirror,py=(sy-footY)*d.scale,down=(py-d.top)/(-d.top),lower=smooth((down-(w.profile.asset==='hank'?.70:.56))/.44),side=Math.tanh(px/8),swing=Math.sin(cycle+side*Math.PI*.5)*walking;
       const step=IslandGait.sample(cycle,px<0?0:1,{stride:pose==='side'?Math.min(w.height*.22,Math.PI*2*.6/.055):w.height*.12,lift:w.height*.045,heading:pose==='side'?sign===1?0:Math.PI:Math.PI/2}),leg=IslandGait.deform(down,w.profile.asset==='hank'?.70:.57,.81,.92,step);
       let dx=leg.x*walking,dy=leg.y*walking;
       // Align whole poses during a transition; never stretch the neck, torso
@@ -51,6 +54,9 @@
       // Seat docking moves the complete pose. Pinning the shoes while moving
       // the pelvis sideways was bending/shrinking both shins into diagonals.
       dx+=shift[0]*seatAmount;dy+=shift[1]*seatAmount;
+      // Extend only the exposed shin, then translate each complete boot/shoe.
+      // Pelvis, thighs, coat/skirt and the original shoe shapes stay anchored.
+      if(extension){const rear=sx>245,start=w.profile.asset==='hank'?(rear?815:755):(rear?750:685),end=w.profile.asset==='hank'?(rear?890:875):(rear?805:790);dy+=extension*smooth((sy-start)/(end-start));}
       // Shared vertices deform the intact coat/skirt and both legs together.
       if(work){const weight=Math.exp(-((px-hx)**2/950+(py-hy)**2/650)),tx=contact?Math.max(-18,Math.min(18,contact[0]-w.x-hx-shift[0]*seatAmount)):0,ty=contact?Math.max(-20,Math.min(20,contact[1]-w.y-hy-shift[1]*seatAmount)):0;dx+=weight*(tx+Math.sin(w.time*7.3)*1.0);dy+=weight*(ty+Math.sin(w.time*9.7)*1.2);}
       if(pose==='scratch'){const side=w.profile.asset==='anthony'?-sign:sign,weight=Math.exp(-((px-side*w.height*.16)**2/1200+(py+w.height*.82)**2/1000));dx+=weight*(Math.sin(w.time*6)*2.5+(w.kind==='glasses'?sign*7:0));dy+=weight*(w.kind==='glasses'?12:Math.sin(w.time*5)*1.4);}
@@ -76,7 +82,8 @@
     g.restore();
   }
   function draw(g,w,images,fallback){
-    g.save();g.fillStyle='#49342626';g.beginPath();g.ellipse(w.x,w.y+2,29,8,0,0,Math.PI*2);g.fill();g.restore();
+    const seated=w.pose==='sit',shadowShift=seated?seatOffset(w):[0,0],shadowY=seated?(w.targetStation?.floorY??w.y+shadowShift[1]):w.y;
+    g.save();g.fillStyle='#49342626';g.beginPath();g.ellipse(w.x+shadowShift[0],shadowY+2,29,8,0,0,Math.PI*2);g.fill();g.restore();
     if(!images?.seats||!images?.gestures||!images?.views){
       if(fallback?.naturalWidth){const [x,y,width,height,footX,footY]=bounds[w.profile.asset].seats[2],s=w.height/height;g.save();g.translate(w.x,w.y);g.scale(Math.cos(w.heading)<0?1:-1,1);g.drawImage(fallback,x,y,width,height,(x-footX)*s,(y-footY)*s,width*s,height*s);g.restore();}return;
     }

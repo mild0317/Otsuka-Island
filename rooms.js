@@ -31,6 +31,7 @@
               <div class="room-scene">
                 <img id="room-art" alt="" decoding="async">
                 <div class="room-light" aria-hidden="true"></div>
+                <svg class="room-clock" viewBox="0 0 1536 1024" role="img" aria-label="房內時鐘" hidden><g transform="translate(1144 182) matrix(.72 .24 0 1 0 0)"><circle r="40" fill="#f0e1c4" stroke="#97734d" stroke-width="1.6"/><g class="room-clock-marks"></g><g fill="none" stroke-linecap="round"><path class="room-clock-hour" d="M0 3V-20" stroke="#5f4936" stroke-width="3.7"/><path class="room-clock-minute" d="M0 4V-30" stroke="#5f4936" stroke-width="2.3"/><path class="room-clock-second" d="M0 7V-33" stroke="#ad563e" stroke-width=".9"/></g><circle r="2.8" fill="#5f4936"/></g></svg>
                 <svg class="room-objects" viewBox="0 0 1536 1024" aria-label="點選發光設備，進入主題"></svg>
                 <canvas class="room-world" width="1536" height="1024" aria-hidden="true"></canvas>
               </div>
@@ -50,6 +51,7 @@
               <section class="topic-prepare"><div><h4>下一步，一起看看你的 PCB</h4><p>先準備手邊已有的資料，讓討論更具體。</p><ul></ul><p class="topic-deliverable"></p></div><button class="topic-download">下載準備清單 ↓</button></section>
             </section>
             </dialog>
+            <dialog class="copyright-dialog" aria-label="版權聲明"><div class="copyright-toolbar"><span>版權聲明</span><button type="button" class="copyright-close">返回工作室 <span aria-hidden="true">×</span></button></div><iframe title="大塚資訊科技股份有限公司版權聲明"></iframe></dialog>
           </div>
         </article>`;
       document.body.append(dialog); this.dialog = dialog;
@@ -57,6 +59,12 @@
       this.$('.room-close').addEventListener('click', () => this.close());
       dialog.addEventListener('cancel', e => { if(e.target!==dialog)return;e.preventDefault();if(this.world?.actor.route.length||this.world?.pendingStation!==null&&this.world?.pendingStation!==undefined){this.world.cancel();this.updateSelection();}else this.close(); });
       const topic=this.$('.room-topic-dialog');
+      const copyright=this.$('.copyright-dialog');
+      this.$('.copyright-close').addEventListener('click',()=>this.closeCopyright());
+      copyright.addEventListener('cancel',e=>{e.preventDefault();e.stopPropagation();this.closeCopyright();});
+      copyright.addEventListener('click',e=>{if(e.target===copyright)this.closeCopyright();});
+      const marks=this.$('.room-clock-marks');
+      for(let i=0;i<12;i++){const angle=i*Math.PI/6,line=document.createElementNS('http://www.w3.org/2000/svg','path');line.setAttribute('d',`M${Math.sin(angle)*35} ${-Math.cos(angle)*35}L${Math.sin(angle)*32} ${-Math.cos(angle)*32}`);line.setAttribute('stroke','#6e5740');line.setAttribute('stroke-width','1');marks.append(line);const text=document.createElementNS('http://www.w3.org/2000/svg','text');text.setAttribute('x',Math.sin(angle)*27);text.setAttribute('y',-Math.cos(angle)*27);text.setAttribute('fill','#6e5740');text.setAttribute('font-size','8');text.setAttribute('font-family','Georgia,serif');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.textContent=i||12;marks.append(text);}
       topic.addEventListener('cancel',e=>{e.preventDefault();e.stopPropagation();this.showRoom(true);});
       topic.addEventListener('click',e=>{if(e.target===topic)this.showRoom(true);});
       const scene=this.$('.room-scene');let down=null;
@@ -107,7 +115,7 @@
     setCoworkers(images){this.coworkerImages=images;}
     setNPCLife(service){this.npcLife=service;}
     resizeScene(){if(!this.key)return;const stage=this.$('.room-stage'),scene=this.$('.room-scene'),w=Math.min(stage.clientWidth,stage.clientHeight*1.5);scene.style.width=w+'px';scene.style.height=(w/1.5)+'px';this.world?.draw();}
-    update(dt){this.world?.update(dt,this.motion);}
+    update(dt,time){if(time&&this.key==='clock'){const {hour,minute,second}=time,svg=this.$('.room-clock');svg.dataset.time=[hour,minute,Math.floor(second)].map(v=>String(v).padStart(2,'0')).join(':');svg.setAttribute('aria-label','房內時鐘 '+svg.dataset.time);this.$('.room-clock-hour').setAttribute('transform',`rotate(${(hour%12+minute/60+second/3600)*30})`);this.$('.room-clock-minute').setAttribute('transform',`rotate(${(minute+second/60)*6})`);this.$('.room-clock-second').setAttribute('transform',`rotate(${second*6})`);}this.world?.update(dt,this.motion);}
     updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation!==null||pending===Number(b.dataset.station))));}
     open(key) {
       const room = rooms[key]; if (!room || this.key) return;
@@ -117,6 +125,7 @@
       this.$('#room-en').textContent = room.en; this.$('#room-title').textContent = room.name;
       this.renderTopic();
       this.$('.room-stations').replaceChildren(); this.$('.room-objects').replaceChildren();
+      this.$('.room-clock').toggleAttribute('hidden',key!=='clock');
       room.stations.forEach(([name], i) => {
         const button = document.createElement('button'); button.type = 'button'; button.dataset.station = i;
         button.textContent = name; button.setAttribute('aria-pressed', 'false');
@@ -136,6 +145,12 @@
         });
         this.$('.room-objects').append(group);
       });
+      if(key==='clock'){
+        const book=document.createElementNS('http://www.w3.org/2000/svg','g');book.classList.add('room-object','copyright-book');book.setAttribute('role','button');book.setAttribute('tabindex','0');book.setAttribute('aria-label','開啟版權聲明');
+        const title=document.createElementNS('http://www.w3.org/2000/svg','title');title.textContent='版權聲明';book.append(title);
+        for(const layer of ['hit','halo','mist','core']){const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M300 702 L333 694 L386 710 L389 763 L360 777 L294 758 L294 718 Z');path.setAttribute('class','object-'+layer);path.setAttribute('vector-effect','non-scaling-stroke');book.append(path);}
+        book.addEventListener('click',()=>this.openCopyright());book.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.openCopyright();}});this.$('.room-objects').append(book);
+      }
       this.showRoom(); this.imageStatus('正在準備房間…');
       const image = this.$('#room-art'); image.alt = `${room.name}：${room.lead}`; image.src = room.image;
       if (image.complete && image.naturalWidth) this.imageStatus('');
@@ -167,6 +182,8 @@
       if(!this.world||!this.snapshot().imageReady||!rooms[this.key]?.stations[index])return;
       if(this.world.visit(index)){this.updateSelection();this.$('.room-topic-list').open=false;this.$('.room-walk-status').textContent='塚博士正在走向設備';}
     }
+    openCopyright(){if(this.key!=='clock'||this.$('.copyright-dialog').open)return;this.world?.cancel();if(this.world)this.world.topicOpen=true;this.updateSelection();const frame=this.$('.copyright-dialog iframe');if(!frame.getAttribute('src'))frame.src='copyright.html?v=36';this.$('.copyright-dialog').showModal();this.$('.copyright-close').focus();}
+    closeCopyright(restoreFocus=true){if(!this.$('.copyright-dialog').open)return;this.$('.copyright-dialog').close();if(this.world)this.world.topicOpen=false;if(restoreFocus)this.$('.copyright-book')?.focus({preventScroll:true});}
     showTopic(index) {
       const station = rooms[this.key]?.stations[index];if(!station)return;
       this.resetDemo(); this.activeStation = index; this.$('.room-content').hidden = false;
@@ -202,6 +219,7 @@
     setMotion(enabled) { this.motion=enabled;this.dialog.classList.toggle('room-paused', !enabled); }
     close() {
       if (!this.key) return;
+      this.closeCopyright(false);
       if(this.$('.room-topic-dialog').open)this.$('.room-topic-dialog').close();
       this.world?.cancel();this.world=null;
       const key = this.key; clearTimeout(this.timer); this.timer = null; this.key = null; this.run = 'idle'; this.activeStation = null;
