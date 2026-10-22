@@ -3,7 +3,7 @@
   // Alpha bounds measured from the delivered PNGs. No pixel reads at runtime,
   // so local file previews and GitHub Pages use exactly the same sprites.
   const bounds={
-    anthony:{gestures:[[114,16,398,961,340,977],[634,15,310,964,779,979],[1121,18,318,962,1266,980]],seats:[[72,193,408,740,190,933],[648,131,346,812,807,943],[1094,44,387,908,1328,952]],views:[[173,17,318,963,335,980],[640,18,316,952,802,970],[1113,19,245,958,1241,977]]},
+    anthony:{portrait:[[205,10,179,500,294,510]],gestures:[[114,16,398,961,340,977],[634,15,310,964,779,979],[1121,18,318,962,1266,980]],seats:[[72,193,408,740,190,933],[648,131,346,812,807,943],[1094,44,387,908,1328,952]],views:[[173,17,318,963,335,980],[640,18,316,952,802,970],[1113,19,245,958,1241,977]]},
     hank:{gestures:[[115,33,355,949,300,982],[622,35,318,947,782,982],[1126,43,327,942,1313,985]],seats:[[74,212,410,759,220,971],[594,119,370,853,797,972],[1029,33,453,950,1333,983]],views:[[119,33,315,945,286,978],[642,35,300,945,803,980],[1156,33,266,950,1276,983]]},
     princess:{gestures:[[125,34,362,921,277,955],[633,31,318,925,739,956],[1073,34,363,923,1233,957]],seats:[[75,197,446,765,205,962],[569,111,400,859,787,970],[1028,34,438,940,1325,974]],views:[[190,16,318,963,348,979],[645,20,326,961,824,981],[1102,15,270,969,1266,984]]}
   };
@@ -13,17 +13,18 @@
   const heads={
     hank:{seats:[[295,345],[745,245],[1260,160]],gestures:[[300,175],[800,175],[1310,175]],views:[[275,160],[800,170],[1270,160]]},
     princess:{seats:[[300,330],[720,245],[1260,160]],gestures:[[345,170],[790,165],[1300,170]],views:[[350,175],[810,175],[1245,170]]},
-    anthony:{seats:[[285,325],[760,250],[1280,165]],gestures:[[360,160],[800,150],[1300,150]],views:[[345,165],[795,160],[1240,155]]}
+    anthony:{portrait:[[295,84]],seats:[[285,325],[760,250],[1280,165]],gestures:[[360,160],[800,150],[1300,150]],views:[[345,165],[795,160],[1240,155]]}
   };
   // Contact with the cushion is the underside of the seated pelvis, not its
   // centre. Pinning the centre made the character sink in front of the chair.
-  const hips={hank:[360,755],princess:[370,710],anthony:[380,735]};
+  // Hank's visible seated underside is y=805; y=755 left him about 18px low.
+  const hips={hank:[360,805],princess:[370,710],anthony:[380,735]};
   function seatOffset(w,sign=w.poseSign||(Math.cos(w.heading)<0?-1:1)){
     const station=w.targetStation;if(!station?.seatHip)return station?.seatShift||[0,0];
     const frames=bounds[w.profile.asset].seats,frame=frames[0],scale=w.height/frames[2][3],mirror=sign===-1?1:-1,hip=hips[w.profile.asset];
     return [station.seatHip[0]-w.x-(hip[0]-frame[4])*scale*mirror,station.seatHip[1]-w.y-(hip[1]-frame[5])*scale];
   }
-  function description(w,pose,sign=1){const [part,index]=poses[pose]||poses.front,frames=bounds[w.profile.asset][part],frame=frames[index],reference=part==='seats'?frames[2][3]:frames[1][3],scale=w.height/reference,base=part==='seats'?-1:part==='views'?(pose==='side'&&w.profile.asset==='hank'?-1:1):w.profile.asset==='anthony'?1:-1,mirror=base===sign?1:-1,amount=pose==='sit'?1:pose==='half'?.5:0,shift=seatOffset(w,sign),head=heads[w.profile.asset][part][index];return {part,index,frame,scale,mirror,top:-frame[3]*scale,head:{x:(head[0]-frame[4])*scale*mirror+shift[0]*amount,y:(head[1]-frame[5])*scale+shift[1]*amount}};}
+  function description(w,pose,sign=1){const [part,index]=w.profile.asset==='anthony'&&pose==='front'?['portrait',0]:poses[pose]||poses.front,frames=bounds[w.profile.asset][part],frame=frames[index],reference=part==='seats'?frames[2][3]:(frames[1]||frames[0])[3],scale=w.height/reference,base=part==='seats'?-1:part==='views'?(pose==='side'&&w.profile.asset==='hank'?-1:1):w.profile.asset==='anthony'?1:-1,mirror=base===sign?1:-1,amount=pose==='sit'?1:pose==='half'?.5:0,shift=seatOffset(w,sign),head=heads[w.profile.asset][part][index];return {part,index,frame,scale,mirror,top:-frame[3]*scale,head:{x:(head[0]-frame[4])*scale*mirror+shift[0]*amount,y:(head[1]-frame[5])*scale+shift[1]*amount}};}
   function hand(w){const base=w.profile.asset==='anthony'?1:-1,current=w.poseSign||(Math.cos(w.heading)<0?-1:1),old=w.previousSign||current,sign=old+(current-old)*smooth(w.blend);return {x:w.x+sign*29,y:w.y-w.height*.62+Math.sin(w.time*1.7)*.6,base,sign};}
   function triangle(g,image,s,d){
     const [a,b,c]=s,[p,q,r]=d,den=a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y);if(Math.abs(den)<.001)return;

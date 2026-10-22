@@ -1,13 +1,13 @@
 (() => {
   'use strict';
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
-  // Three fixed poses per coworker: right seat (operate), left seat (operate /
-  // bench work), and standing facing the camera. Stations are resolved against
+  // Princess and Hank keep three fixed poses; Anthony always stands smiling
+  // toward the camera. Seats are resolved against
   // each profile; right/left are the screen chairs by their room x position.
   const POSES={
     clock:[{station:'computer',kind:'type'},{station:'stool',kind:'seatedWork'},{stand:true}],
     library:[{station:'second',kind:'type'},{station:'computer',kind:'seatedWork'},{stand:true}],
-    lab:[{station:'computer',kind:'type'},{station:'second',kind:'type'},{stand:true}]
+    lab:[{stand:true}]
   };
   class IslandNPCLife {
     constructor({getDoctor=()=>null,getCat=()=>null,random=Math.random,fallbackImages={}}={}){
@@ -20,7 +20,7 @@
       }
     }
     // On each doctor visit a coworker holds one of three fixed poses, chosen
-    // at random: seated operating the right chair, seated working at the left
+    // at random (Anthony always stands): seated operating the right chair, seated working at the left
     // chair/stool, or standing facing the camera. No walking, no thinking, no
     // props; only the idle breathing motion remains. The seats and the
     // standing spot are different places, so a pose is picked once and held
@@ -38,10 +38,10 @@
     load(key){
       const w=this.workers[key];if(!w)return Promise.resolve();if(this.loads[key])return this.loads[key];
       this.images[key]={};
-      this.loads[key]=Promise.all(['seats','gestures','views'].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src='assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))).then(()=>this.ready(key));
+      this.loads[key]=Promise.all(['seats','gestures','views',...(w.profile.asset==='anthony'?['portrait']:[])].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src=part==='portrait'?'assets/npc-anthony-front-v35.png':'assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))).then(()=>this.ready(key));
       return this.loads[key];
     }
-    ready(key){return ['seats','gestures','views'].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
+    ready(key){return ['seats','gestures','views',...(this.workers[key]?.profile.asset==='anthony'?['portrait']:[])].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
     body(key){const w=this.workers[key];return w?{x:w.x,y:w.y,radius:66,name:w.name}:null;}
     people(key){const body=this.body(key);return body?[body]:[];}
     otherBodies(key){const d=this.getDoctor();return d?.location===key?[{...d,radius:67}]:[];}
