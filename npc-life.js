@@ -8,7 +8,27 @@
         const p=profile.stations[profile.start];
         this.workers[key]={key,profile,name:profile.name,x:p.x,y:p.y,height:profile.height,station:profile.start,heading:Math.atan2(p.look.y-p.y,p.look.x-p.x),phase:random()*6,time:0,elapsed:0,duration:8+random()*7,kind:'work',pose:'work',previousPose:'work',blend:1,route:[],steps:[],job:'initial',previousJob:'',speed:0,walkSpeed:100,blocked:0,prop:null,yielding:false,history:[],completed:0};
         this.workers[key].items=Object.entries(profile.stations).filter(([,s])=>s.item).map(([station,s])=>({id:key+'-'+station,kind:s.prop,hiddenAtRest:!!s.storage,home:{...s.item},station,location:'table',progress:0}));
+        this.settle(this.workers[key]);
       }
+    }
+    // Pin a coworker to a single fixed pose: seated working at the screen,
+    // standing in thought at the screen, or holding a board to inspect it.
+    // No walking, no routine cycling; only the idle breathing motion remains.
+    settle(w){
+      const S=w.profile.stations,keys=Object.keys(S);
+      const chair=keys.find(k=>S[k].chair),prop=keys.find(k=>S[k].prop==='pcb')||keys.find(k=>S[k].prop);
+      const options=[];
+      if(chair)options.push({station:chair,kind:S[chair].mode==='bench'?'seatedWork':'type'});
+      if(chair)options.push({station:chair,kind:'scratch'});
+      if(prop)options.push({station:prop,kind:'inspect',hold:true});
+      if(!options.length)options.push({station:w.profile.start,kind:'look'});
+      const pick=options[Math.floor(this.random()*options.length)],st=S[pick.station];
+      w.static=true;w.station=pick.station;w.targetStation=st;w.kind=pick.kind;
+      w.x=st.x;w.y=st.y;w.speed=0;w.gait=0;w.route=[];w.steps=[];w.goal=null;w.blocked=0;w.yielding=false;w.elapsed=0;w.duration=Infinity;
+      w.heading=w.targetHeading=Math.atan2(st.look.y-st.y,st.look.x-st.x);
+      w.prop=null;
+      if(pick.hold){w.prop=w.items.find(p=>p.station===pick.station)||w.items[0]||null;if(w.prop){w.prop.location='hands';w.prop.progress=1;}}
+      w.pose=this.poseFor(w);w.previousPose=w.pose;w.poseSign=Math.cos(w.heading)<0?-1:1;w.blend=1;
     }
     load(key){
       const w=this.workers[key];if(!w)return Promise.resolve();if(this.loads[key])return this.loads[key];
@@ -62,8 +82,19 @@
     }
     update(dt){
       if(!(dt>0))return;
+      // When the doctor steps into a room, re-settle that room's coworker into
+      // a new random fixed pose. Nobody walks or cycles actions otherwise.
+      const location=this.getDoctor()?.location||null;
+      if(location!==this.doctorLocation){this.doctorLocation=location;if(location&&this.workers[location])this.settle(this.workers[location]);}
       for(const w of Object.values(this.workers)){
         w.time+=dt;w.blend=Math.min(1,w.blend+dt/(w.transitionDuration||.8));
+        if(w.static){
+          w.speed=0;w.gait=(w.gait||0)*Math.exp(-dt*6);
+          if(w.targetHeading!==undefined)w.heading+=Math.atan2(Math.sin(w.targetHeading-w.heading),Math.cos(w.targetHeading-w.heading))*Math.min(1,dt*5);
+          this.setPose(w);
+          if(w.prop&&w.prop.location!=='hands'){w.prop.location='hands';w.prop.progress=1;}
+          continue;
+        }
         w.gait=(w.gait||0)+((w.kind==='walk'?Math.min(1,w.speed/70):0)-(w.gait||0))*Math.min(1,dt*7);
         if(w.kind==='walk'){
           if(!w.route.length&&distance(w,w.goal||w)<2){w.speed*=Math.exp(-dt*9);this.next(w);continue;}
@@ -97,17 +128,10 @@
         }
       }
     }
-    requestYield(key,from,to){
-      const w=this.workers[key];if(!w||w.yielding||IslandCatTerrain.peopleClear(from,to,[{...w,radius:70}],70))return;
-      if(['pick','place','half'].includes(w.kind))return;
-      const end=this.getDoctor()?.route?.at(-1)||to,free=this.yieldPoint(w,from,end);w.yieldEnd={x:end.x,y:end.y};
-      if(!free)return;
-      const resume={kind:w.kind,time:Math.max(2,w.duration-w.elapsed),station:w.station,...(w.kind==='walk'?{point:w.goal}:{})},returnStep={kind:'walk',point:{x:w.x,y:w.y},station:w.station};
-      const seated=w.pose==='sit',half={kind:'half',time:.8,station:w.station};
-      w.steps=[...(seated?[half,{kind:'stand',time:.8,station:w.station}]:[]),{kind:'walk',point:{x:free.x,y:free.y},station:w.station},{kind:'yield',time:3,station:w.station},returnStep,...(seated?[half,{kind:'sit',time:.8,station:w.station}]:[]),resume,...w.steps];
-      w.yielding=true;this.start(w,w.steps.shift());
-    }
-    allowsDoctorStep(key,from,to){const bodies=this.people(key);const clear=IslandCatTerrain.peopleClear(from,to,bodies,66);if(!clear)this.requestYield(key,from,to);return clear;}
+    // Coworkers hold a fixed pose and never step aside; the doctor simply
+    // routes around whatever furniture spot they are settled at.
+    requestYield(){}
+    allowsDoctorStep(key,from,to){return IslandCatTerrain.peopleClear(from,to,this.people(key),66);}
     draw(key,g,art){const w=this.workers[key];if(!w)return;IslandNPCRenderer.draw(g,w,this.images[key],this.fallbackImages[w.profile.asset]);const back=w.targetStation?.back;if(back&&w.pose==='sit'&&w.blend>.6&&art?.naturalWidth){g.save();g.beginPath();back.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.clip();g.drawImage(art,0,0,1536,1024);g.restore();}}
     snapshot(key){const w=this.workers[key];return w?{name:w.name,x:w.x,y:w.y,height:w.height,working:true,animationTime:w.time,action:w.kind,station:w.station,job:w.job,pose:w.pose,previousPose:w.previousPose,transition:ease(w.blend),heading:w.heading,speed:w.speed,route:w.route.map(p=>({...p})),goal:w.goal?{x:w.goal.x,y:w.goal.y}:null,yielding:w.yielding,prop:w.prop?{...w.prop,home:{...w.prop.home}}:null,habit:w.profile.habit,completed:w.completed,history:w.history.map(x=>({...x})),assetsReady:this.ready(key)}:null;}
   }
