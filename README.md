@@ -2,6 +2,8 @@
 
 浮空島互動測試版。純 HTML、CSS、JavaScript，沒有外部套件或網路素材。
 
+第 38 版點選室內螢幕時，塚博士會走到同一通道內、距原操作點 110 個場景像素以內的可達空位，再開啟主題；已在附近時可直接開啟。抵達點及路徑都會避開固定人物，不再嘗試走進被占用的位置。`node check-room-approach.mjs` 檢查四間房、所有固定姿勢及舊路徑被擋住時的恢復。
+
 目前為第 36 版，保留簡化後的固定人物姿勢與自然呼吸。Hank 與小公主依椅面及地板分別校準坐姿，小公主右側椅背會遮擋腰背。設計工作室左下書堆可點選開啟 `copyright.html`，顯示指定版權聲明與右上品牌 Logo；房內時鐘和島上即時／光影預覽時間同步。啟動 `node serve.mjs` 後，執行 `node check-room-details.mjs` 檢查實際鞋底接地像素、椅背遮擋、書堆點選、版權頁、手機／4K 排版及時鐘連動。品牌素材來源見 [brand-logo-source.md](assets/brand-logo-source.md)。
 
 第 26 版將 Hank 改為 21 骨骼的 2.5D 角色，走路、坐下、起身與工作使用同一套骨架；說明與調整位置見 [HANK-RIG.md](HANK-RIG.md)。`node check-hank-rig.mjs` 可檢查骨長、步態與工作站對位。

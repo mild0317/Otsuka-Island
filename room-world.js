@@ -42,7 +42,7 @@
     nodes.forEach(p=>{for(const [dx,dy] of [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]]){const i=indices.get((p.x+dx*step)+','+(p.y+dy*step));if(i!==undefined&&clear(p,nodes[i]))p.links.push(i);}});
     function findPath(start,target,people=[]){
       const safe=(a,b)=>clear(a,b)&&(!people.length||IslandCatTerrain.peopleClear(a,b,people,64));
-      if(!isWalkable(start)||!isWalkable(target))return null;
+      if(!isWalkable(start)||!isWalkable(target)||people.length&&!IslandCatTerrain.peopleClear(target,target,people,64))return null;
       if(safe(start,target))return [{...target}];
       const near=p=>nodes.map((n,i)=>({i,d:distance(p,n)})).filter(n=>n.d<90).sort((a,b)=>a.d-b.d).filter(n=>safe(p,nodes[n.i])).slice(0,8);
       const beginnings=near(start),ends=near(target),goals=new Set(ends.map(n=>n.i)),costs=nodes.map(()=>Infinity),previous=nodes.map(()=>-1),open=new Set();
@@ -52,25 +52,57 @@
       const route=[{...target}];for(let i=end;i>=0;i=previous[i])route.unshift({x:nodes[i].x,y:nodes[i].y});
       const smooth=[];let at=start;while(route.length){let far=route.length-1;while(far>0&&!safe(at,route[far]))far--;at=route[far];smooth.push(at);route.splice(0,far+1);}return smooth;
     }
-    const result={layout,isWalkable,findPath,nodes};cache.set(key,result);return result;
+    function findApproach(start,target,people=[],radius=110){
+      const routeLength=(from,route)=>{let total=0;for(const p of route){total+=distance(from,p);from=p;}return total;};
+      const parking=people.map(p=>({...p,radius:(p.radius||66)+5}));
+      const nearDevice=p=>{if(distance(p,target)>radius||!isWalkable(p)||!IslandCatTerrain.peopleClear(p,p,parking,71))return false;const access=findPath(p,target);return access&&routeLength(p,access)<=radius+.01;};
+      if(nearDevice(start))return{point:{x:start.x,y:start.y},route:[]};
+      // Stay on the device's aisle and select reachable floor, not a point
+      // through the central desk or occupied by the seated coworker.
+      const candidates=[target,...nodes].filter(nearDevice).sort((a,b)=>(distance(start,a)+distance(a,target)*.15)-(distance(start,b)+distance(b,target)*.15));
+      let best=null,cost=Infinity;
+      for(const p of candidates){const lower=distance(start,p)+distance(p,target)*.15;if(lower>=cost)continue;const route=findPath(start,p,people);if(!route)continue;const score=routeLength(start,route)+distance(p,target)*.15;if(score<cost){best={point:{x:p.x,y:p.y},route};cost=score;}}
+      return best;
+    }
+    const result={layout,isWalkable,findPath,findApproach,nodes};cache.set(key,result);return result;
   }
   class RoomWorld {
     constructor({key,canvas,art,renderCharacter,onArrive,cat,coworkerImages,npcLife}){
       this.npcLife=npcLife;this.coworker=npcLife?.workers[key]||coworkers[key]||null;this.coworkerImages=coworkerImages;
-      this.key=key;this.canvas=canvas;this.art=art;this.renderCharacter=renderCharacter;this.onArrive=onArrive;this.cat=cat;this.nav=navigation(key);this.layout=this.nav.layout;this.pendingStation=null;this.hold=0;this.marker=null;this.time=0;this.topicOpen=false;
+      this.key=key;this.canvas=canvas;this.art=art;this.renderCharacter=renderCharacter;this.onArrive=onArrive;this.cat=cat;this.nav=navigation(key);this.layout=this.nav.layout;this.pendingStation=null;this.hold=0;this.marker=null;this.time=0;this.topicOpen=false;this.approachPoint=null;
       this.actor={...point(this.layout.spawn),route:[],phase:0,gait:0,facing:0,heading:0,turn:0,wave:0,idle:0,nextWave:8+Math.random()*8,lookAt:false};
       const occupied=[...(npcLife?.people(key)||[])];if(cat?.location===key&&cat.z<295)occupied.push({x:cat.x,y:cat.y+cat.z,radius:70});if(occupied.some(p=>distance(this.actor,p)<(p.radius||70))){const free=this.nav.nodes.filter(p=>occupied.every(body=>distance(p,body)>=(body.radius||70)+6)&&distance(p,this.actor)<170&&this.nav.findPath(this.actor,p)).sort((a,b)=>distance(a,this.actor)-distance(b,this.actor))[0];if(free){this.actor.x=free.x;this.actor.y=free.y;}}
     }
-    cancel(){this.actor.route=[];this.pendingStation=null;this.marker=null;this.hold=0;this.actor.lookAt=false;}
+    cancel(){this.actor.route=[];this.pendingStation=null;this.marker=null;this.hold=0;this.actor.lookAt=false;this.approachPoint=null;}
     walkTo(target,station=null){
-      if(this.topicOpen)return false;let route=this.nav.findPath(this.actor,target,this.npcLife?.people(this.key)||[]);if(!route){this.npcLife?.requestYield(this.key,this.actor,target);route=this.nav.findPath(this.actor,target);}if(!route)return false;
-      this.actor.route=route.filter(p=>distance(p,this.actor)>.5);this.actor.wave=0;this.actor.idle=0;this.actor.lookAt=false;this.pendingStation=station;this.hold=0;this.marker={...target};return true;
+      if(this.topicOpen)return false;let route=this.nav.findPath(this.actor,target,this.npcLife?.people(this.key)||[]);if(!route){this.npcLife?.requestYield(this.key,this.actor,target);route=this.nav.findPath(this.actor,target,this.npcLife?.people(this.key)||[]);}if(!route)return false;
+      this.actor.route=route.filter(p=>distance(p,this.actor)>.5);this.actor.wave=0;this.actor.idle=0;this.actor.lookAt=false;this.pendingStation=station;this.approachPoint=station===null?null:{...target};this.hold=0;this.marker={...target};return true;
     }
-    visit(index){return index===0&&this.walkTo(point(this.layout.equipment.target),index);}
+    visit(index){if(index!==0||this.topicOpen)return false;const approach=this.nav.findApproach(this.actor,point(this.layout.equipment.target),this.npcLife?.people(this.key)||[],110);return !!approach&&this.walkTo(approach.point,index);}
     update(dt,motion=true){
       this.time+=motion?dt:0;const a=this.actor,moving=a.route.length>0;
       a.gait+=((moving?1:0)-a.gait)*Math.min(1,dt*12);a.turn=Math.max(0,a.turn-dt*4);
-      if(!this.topicOpen&&moving){let budget=dt*230;while(budget>0&&a.route.length){const goal=a.route[0],d=distance(a,goal);if(d<.1){a.route.shift();continue;}const angle=Math.atan2(goal.y-a.y,goal.x-a.x);if(Math.abs(Math.atan2(Math.sin(angle-a.heading),Math.cos(angle-a.heading)))>.65)a.turn=1;a.heading=angle;a.facing+=Math.atan2(Math.sin(angle-a.facing),Math.cos(angle-a.facing))*Math.min(1,dt*12);const step=Math.min(budget,d),next={x:a.x+(goal.x-a.x)*step/d,y:a.y+(goal.y-a.y)*step/d};if(!this.nav.isWalkable(next)){this.cancel();break;}if(this.npcLife&&!this.npcLife.allowsDoctorStep(this.key,a,next)){this.blocked=(this.blocked||0)+dt;if(this.blocked>.4){const route=this.nav.findPath(a,a.route.at(-1),this.npcLife.people(this.key));if(route)a.route=route;this.blocked=0;}break;}this.blocked=0;if(this.cat&&!this.cat.allowsPersonStep(a,next,this.key))break;a.x=next.x;a.y=next.y;a.phase+=step*.065;budget-=step;if(step>=d){a.route.shift();a.x=goal.x;a.y=goal.y;}}}
+      if(!this.topicOpen&&moving){
+        let budget=dt*230;
+        while(budget>0&&a.route.length){
+          const goal=a.route[0],d=distance(a,goal);if(d<.1){a.route.shift();continue;}
+          const angle=Math.atan2(goal.y-a.y,goal.x-a.x);if(Math.abs(Math.atan2(Math.sin(angle-a.heading),Math.cos(angle-a.heading)))>.65)a.turn=1;
+          a.heading=angle;a.facing+=Math.atan2(Math.sin(angle-a.facing),Math.cos(angle-a.facing))*Math.min(1,dt*12);
+          const step=Math.min(budget,d),next={x:a.x+(goal.x-a.x)*step/d,y:a.y+(goal.y-a.y)*step/d};
+          if(!this.nav.isWalkable(next)){this.cancel();break;}
+          if(this.npcLife&&!this.npcLife.allowsDoctorStep(this.key,a,next)){
+            this.blocked=(this.blocked||0)+dt;
+            if(this.blocked>.4){
+              if(this.pendingStation!==null){if(!this.visit(this.pendingStation))this.cancel();}
+              else{const route=this.nav.findPath(a,a.route.at(-1),this.npcLife.people(this.key));if(route)a.route=route;else this.cancel();}
+              this.blocked=0;
+            }
+            break;
+          }
+          this.blocked=0;if(this.cat&&!this.cat.allowsPersonStep(a,next,this.key))break;
+          a.x=next.x;a.y=next.y;a.phase+=step*.065;budget-=step;if(step>=d){a.route.shift();a.x=goal.x;a.y=goal.y;}
+        }
+      }
       if(!this.topicOpen&&!a.route.length){this.marker=null;if(this.pendingStation!==null){const look=point(this.layout.equipment.lookAt),heading=Math.atan2(look.y-a.y,look.x-a.x);a.lookAt=true;a.facing+=Math.atan2(Math.sin(heading-a.facing),Math.cos(heading-a.facing))*Math.min(1,dt*12);this.hold+=dt;if(this.hold>=.38){const index=this.pendingStation;this.pendingStation=null;this.topicOpen=true;this.onArrive(index);}}else if(motion){a.idle+=dt;if(a.wave>0)a.wave=Math.max(0,a.wave-dt);else if(a.idle>a.nextWave){a.wave=3.2;a.idle=0;a.nextWave=10+Math.random()*9;}}}
       this.draw();
     }
@@ -84,7 +116,7 @@
       entities.sort((a,b)=>a.actor.y-b.actor.y);
       for(const entity of entities){entity.draw();if(entity.actor===this.cat&&this.cat.z>35)continue;for(const mask of this.layout.occluders){const x=entity.actor.x,front=mask.front;let depth=-Infinity;for(let i=1;i<front.length;i++){const [ax,ay]=front[i-1],[bx,by]=front[i];if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}}if(entity.actor.y>=depth||!this.art.naturalWidth)continue;g.save();g.beginPath();mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();g.drawImage(this.art,0,0,1536,1024);g.restore();}}
     }
-    snapshot(){return{actor:{...this.actor,route:this.actor.route.map(p=>({...p}))},pendingStation:this.pendingStation,arrivalHold:this.hold,equipment:{outline:this.layout.equipment.outline,target:point(this.layout.equipment.target)},spawn:point(this.layout.spawn),speed:230,coworkers:this.npcLife?(this.npcLife.snapshot(this.key)?[this.npcLife.snapshot(this.key)]:[]):this.coworker?[{name:this.coworker.name,x:this.coworker.x,y:this.coworker.y,working:true,animationTime:this.time}]:[]};}
+    snapshot(){return{actor:{...this.actor,route:this.actor.route.map(p=>({...p}))},pendingStation:this.pendingStation,arrivalHold:this.hold,equipment:{outline:this.layout.equipment.outline,target:this.approachPoint?{...this.approachPoint}:point(this.layout.equipment.target),preferredTarget:point(this.layout.equipment.target),reach:110},spawn:point(this.layout.spawn),speed:230,coworkers:this.npcLife?(this.npcLife.snapshot(this.key)?[this.npcLife.snapshot(this.key)]:[]):this.coworker?[{name:this.coworker.name,x:this.coworker.x,y:this.coworker.y,working:true,animationTime:this.time}]:[]};}
   }
   window.IslandRoomWorld=Object.freeze({layouts,navigation,RoomWorld,coworkers});
 })();
