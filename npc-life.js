@@ -11,23 +11,28 @@
         this.settle(this.workers[key]);
       }
     }
-    // Pin a coworker to a single fixed pose: seated working at the screen,
-    // standing in thought at the screen, or holding a board to inspect it.
-    // No walking, no routine cycling; only the idle breathing motion remains.
+    // Pin a coworker to one stance cluster: either seated (operating the
+    // screen <-> pondering at the screen) or standing (operating the screen
+    // <-> thinking, or inspecting a held board <-> thinking). Actions toggle
+    // only within the chosen cluster, so a seated person never stands and a
+    // standing person never sits. Nobody walks; only idle motion remains.
     settle(w){
       const S=w.profile.stations,keys=Object.keys(S);
       const chair=keys.find(k=>S[k].chair),prop=keys.find(k=>S[k].prop==='pcb')||keys.find(k=>S[k].prop);
-      const options=[];
-      if(chair)options.push({station:chair,kind:S[chair].mode==='bench'?'seatedWork':'type'});
-      if(chair)options.push({station:chair,kind:'scratch'});
-      if(prop)options.push({station:prop,kind:'inspect',hold:true});
-      if(!options.length)options.push({station:w.profile.start,kind:'look'});
-      const pick=options[Math.floor(this.random()*options.length)],st=S[pick.station];
-      w.static=true;w.station=pick.station;w.targetStation=st;w.kind=pick.kind;
+      const clusters=[];
+      if(chair){
+        clusters.push({station:chair,actions:[S[chair].mode==='bench'?'seatedWork':'type','seatedLook']});
+        clusters.push({station:chair,actions:['work','scratch']});
+      }
+      if(prop)clusters.push({station:prop,actions:['inspect','scratch'],hold:true});
+      if(!clusters.length)clusters.push({station:w.profile.start,actions:['look','scratch']});
+      const cluster=clusters[Math.floor(this.random()*clusters.length)],st=S[cluster.station];
+      w.cluster=cluster;w.static=true;w.station=cluster.station;w.targetStation=st;
       w.x=st.x;w.y=st.y;w.speed=0;w.gait=0;w.route=[];w.steps=[];w.goal=null;w.blocked=0;w.yielding=false;w.elapsed=0;w.duration=Infinity;
       w.heading=w.targetHeading=Math.atan2(st.look.y-st.y,st.look.x-st.x);
+      w.actionIndex=Math.floor(this.random()*cluster.actions.length);w.kind=cluster.actions[w.actionIndex];w.actionTimer=6+this.random()*7;
       w.prop=null;
-      if(pick.hold){w.prop=w.items.find(p=>p.station===pick.station)||w.items[0]||null;if(w.prop){w.prop.location='hands';w.prop.progress=1;}}
+      if(cluster.hold){w.prop=w.items.find(p=>p.station===cluster.station)||w.items[0]||null;if(w.prop){w.prop.location='hands';w.prop.progress=1;}}
       w.pose=this.poseFor(w);w.previousPose=w.pose;w.poseSign=Math.cos(w.heading)<0?-1:1;w.blend=1;
     }
     load(key){
@@ -89,8 +94,10 @@
       for(const w of Object.values(this.workers)){
         w.time+=dt;w.blend=Math.min(1,w.blend+dt/(w.transitionDuration||.8));
         if(w.static){
-          w.speed=0;w.gait=(w.gait||0)*Math.exp(-dt*6);
+          w.speed=0;w.gait=(w.gait||0)*Math.exp(-dt*6);w.elapsed+=dt;
           if(w.targetHeading!==undefined)w.heading+=Math.atan2(Math.sin(w.targetHeading-w.heading),Math.cos(w.targetHeading-w.heading))*Math.min(1,dt*5);
+          w.actionTimer-=dt;
+          if(w.actionTimer<=0&&w.cluster){w.actionIndex=(w.actionIndex+1)%w.cluster.actions.length;w.kind=w.cluster.actions[w.actionIndex];w.elapsed=0;w.actionTimer=6+this.random()*7;}
           this.setPose(w);
           if(w.prop&&w.prop.location!=='hands'){w.prop.location='hands';w.prop.progress=1;}
           continue;
