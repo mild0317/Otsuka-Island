@@ -18,7 +18,7 @@
   // Contact with the cushion is the underside of the seated pelvis, not its
   // centre. Pinning the centre made the character sink in front of the chair.
   // The pelvis rests on the cushion; the hanging coat hem is not a seat anchor.
-  const hips={hank:[345,735],princess:[370,710],anthony:[380,735]};
+  const hips={hank:[380,780],princess:[370,710],anthony:[380,735]};
   function seatOffset(w,sign=w.poseSign||(Math.cos(w.heading)<0?-1:1)){
     const station=w.targetStation;if(!station?.seatHip)return station?.seatShift||[0,0];
     const frames=bounds[w.profile.asset].seats,frame=frames[0],scale=w.height/frames[2][3],mirror=sign===-1?1:-1,hip=hips[w.profile.asset];
