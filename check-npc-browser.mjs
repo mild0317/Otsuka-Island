@@ -66,22 +66,35 @@ try {
     for(let y=Math.max(0,Math.floor(w.y+shift[1]-w.height*.18));y<520;y++)for(let x=0;x<500;x++){const i=(y*500+x)*4;if(e[i+3]>160){total++;if(a[i+3]>160)match++;}}
     return {total,overlap:match/total};
   }
-  for(const key of ['clock','library','lab']){
+  for(const key of process.env.HANK_ONLY?['library']:['clock','library','lab']){
     await choose(key);await evaluate('__qaNPC.load('+JSON.stringify(key)+')');await evaluate('__qaNPC.update=()=>{}');
     check(await evaluate('islandGame.coworkerState('+JSON.stringify(key)+').assetsReady'),'All new pose sheets load: '+key);
-    const pixels=await evaluate('('+auditWalking.toString()+')('+JSON.stringify(key)+')');
-    check(pixels.every(p=>p.ok),'Front, back and side walking keep clothes intact: '+key+' '+JSON.stringify(pixels));
+    if(key!=='library'){
+      const pixels=await evaluate('('+auditWalking.toString()+')('+JSON.stringify(key)+')');
+      check(pixels.every(p=>p.ok),'Front, back and side walking keep clothes intact: '+key+' '+JSON.stringify(pixels));
+    }else{
+      check(await evaluate('(()=>{const w=__qaNPC.workers.library,s=IslandHankRig.snapshot(w);return s.type==="articulated-2.5d"&&s.bones.length===21&&s.bones.every(b=>b.a.every(Number.isFinite)&&b.b.every(Number.isFinite))})()'),'Hank uses the connected articulated skeleton');
+    }
     for(const station of await evaluate('Object.entries(__qaNPC.workers['+JSON.stringify(key)+'].profile.stations).filter(([,s])=>s.chair).map(([name])=>name)')){
       await place(key,station,'type');await delay(100);await screenshot('npc-'+key+'-'+station+'-seated-v24.png');
-      const legs=await evaluate('('+auditSeatedLegs.toString()+')('+JSON.stringify(key)+','+JSON.stringify(station)+')');
-      check(legs.total>100&&legs.overlap>.93,'Seated shins and shoes retain their original shape: '+key+'/'+station+' '+legs.overlap.toFixed(3));
+      if(key!=='library'){
+        const legs=await evaluate('('+auditSeatedLegs.toString()+')('+JSON.stringify(key)+','+JSON.stringify(station)+')');
+        check(legs.total>100&&legs.overlap>.93,'Seated shins and shoes retain their original shape: '+key+'/'+station+' '+legs.overlap.toFixed(3));
+      }else{
+        await evaluate('(()=>{const w=__qaNPC.workers.library;for(let i=0;i<120;i++){w.time+=1/60;IslandHankRig.solve(w)}})()');await delay(100);await screenshot('hank-rig-'+station+'-v26.png');
+        check(await evaluate('(()=>{const w=__qaNPC.workers.library,r=IslandHankRig.solve(w),p=r.project(r.joints.pelvis),s=w.targetStation.seatHip;return Math.hypot(p.x-s[0],p.y-s[1]+w.height*.025)<1})()'),'Hank pelvis rests on the actual chair: '+station);
+      }
     }
     check(await evaluate('Number(getComputedStyle(document.querySelector(".room-world")).zIndex)>Number(getComputedStyle(document.querySelector(".room-objects")).zIndex)'),'Equipment glow stays behind the people: '+key);
-    await place(key,key==='lab'?'overview':'bench','work');await delay(180);await screenshot('npc-'+key+'-working-v24.png');
+    const settleRig=async()=>{if(key==='library')await evaluate('(()=>{const w=__qaNPC.workers.library;for(let i=0;i<150;i++){w.time+=1/60;IslandHankRig.solve(w)}})()');};
+    await place(key,key==='lab'?'overview':'bench','work');await settleRig();await delay(180);await screenshot('npc-'+key+'-working-v24.png');
     for(const kind of ['scratch','fold','inspect']){
       await place(key,key==='lab'?'overview':'bench',kind);
       if(kind==='inspect')await evaluate('(()=>{const w=__qaNPC.workers['+JSON.stringify(key)+'];w.prop={kind:w.targetStation.prop,home:w.targetStation.item,location:"hands"};w.time+=1})()');
-      await delay(100);await screenshot('npc-'+key+'-'+kind+'-v24.png');
+      await settleRig();await delay(100);await screenshot('npc-'+key+'-'+kind+'-v24.png');
+    }
+    if(key==='library')for(const [label,heading]of [['front',Math.PI/2],['side',Math.PI],['back',-Math.PI/2]]){
+      await place(key,'bench','stand');await evaluate('(()=>{const w=__qaNPC.workers.library;w.heading='+heading+';for(let i=0;i<150;i++){w.time+=1/60;IslandHankRig.solve(w)}})()');await delay(80);await screenshot('hank-rig-'+label+'-v26.png');
     }
     await place(key,'computer','sit');
     const transitions=await evaluate('(()=>{const w=__qaNPC.workers['+JSON.stringify(key)+'];w.previousPose="work";w.pose="sit";w.blend=0;const states=[];for(let i=0;i<15;i++){IslandNPCLife.prototype.update.call(__qaNPC,.05);states.push(__qaNPC.snapshot('+JSON.stringify(key)+').transition)}return states})()');
