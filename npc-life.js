@@ -1,13 +1,13 @@
 (() => {
   'use strict';
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),ease=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
-  // Princess and Hank keep three fixed poses; Anthony always stands smiling
-  // toward the camera. Seats are resolved against
+  // Each coworker has two seated poses and a camera-facing standing smile.
+  // Seats are resolved against
   // each profile; right/left are the screen chairs by their room x position.
   const POSES={
     clock:[{station:'computer',kind:'type'},{station:'stool',kind:'seatedWork'},{stand:true}],
     library:[{station:'second',kind:'type'},{station:'computer',kind:'seatedWork'},{stand:true}],
-    lab:[{stand:true}]
+    lab:[{station:'computer',kind:'type'},{station:'second',kind:'type'},{stand:true}]
   };
   class IslandNPCLife {
     constructor({getDoctor=()=>null,getCat=()=>null,random=Math.random,fallbackImages={}}={}){
@@ -20,14 +20,15 @@
       }
     }
     // On each doctor visit a coworker holds one of three fixed poses, chosen
-    // at random (Anthony always stands): seated operating the right chair, seated working at the left
+    // at random: seated operating the right chair, seated working at the left
     // chair/stool, or standing facing the camera. No walking, no thinking, no
     // props; only the idle breathing motion remains. The seats and the
     // standing spot are different places, so a pose is picked once and held
     // (never toggled) to avoid teleporting between them.
     settle(w){
       const presets=IslandNPCLife.POSES[w.key]||[{stand:true}];
-      const pick=presets[Math.floor(this.random()*presets.length)];
+      const options=w.profile.asset==='anthony'&&presets.length>1?presets.filter(p=>(p.station||'stand')!==w.lastFixedPose):presets;
+      const pick=options[Math.floor(this.random()*options.length)];w.lastFixedPose=pick.station||'stand';
       const st=w.profile.stations[pick.station]||w.profile.stations[w.profile.start];
       w.static=true;w.station=pick.station||w.profile.start;w.targetStation=st;
       w.speed=0;w.gait=0;w.route=[];w.steps=[];w.goal=null;w.blocked=0;w.yielding=false;w.elapsed=0;w.duration=Infinity;w.prop=null;
