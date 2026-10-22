@@ -21,5 +21,6 @@ try {
     } finally { $deck.Close() }
     Write-Output ($key + ': ' + $slides.Count + ' slides')
   }
-  $manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $Root 'PPT/manifest.json') -Encoding UTF8
+  $json = ($manifest | ConvertTo-Json -Depth 6) -replace "`r`n", "`n"
+  [System.IO.File]::WriteAllText((Join-Path $Root 'PPT/manifest.json'), $json, (New-Object System.Text.UTF8Encoding($false)))
 } finally { $app.Quit() }
