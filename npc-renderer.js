@@ -24,7 +24,7 @@
     return [station.seatHip[0]-w.x-(hip[0]-frame[4])*scale*mirror,station.seatHip[1]-w.y-(hip[1]-frame[5])*scale];
   }
   function description(w,pose,sign=1){const [part,index]=poses[pose]||poses.front,frames=bounds[w.profile.asset][part],frame=frames[index],reference=part==='seats'?frames[2][3]:frames[1][3],scale=w.height/reference,base=part==='seats'?-1:part==='views'?(pose==='side'&&w.profile.asset==='hank'?-1:1):w.profile.asset==='anthony'?1:-1,mirror=base===sign?1:-1,amount=pose==='sit'?1:pose==='half'?.5:0,shift=seatOffset(w,sign),head=heads[w.profile.asset][part][index];return {part,index,frame,scale,mirror,top:-frame[3]*scale,head:{x:(head[0]-frame[4])*scale*mirror+shift[0]*amount,y:(head[1]-frame[5])*scale+shift[1]*amount}};}
-  function hand(w){if(w.profile.asset==='hank'){const point=window.IslandHankRig?.hand(w);if(point)return {...point,base:-1,sign:Math.cos(w.heading)<0?-1:1};}const base=w.profile.asset==='anthony'?1:-1,current=w.poseSign||(Math.cos(w.heading)<0?-1:1),old=w.previousSign||current,sign=old+(current-old)*smooth(w.blend);return {x:w.x+sign*29,y:w.y-w.height*.62+Math.sin(w.time*1.7)*.6,base,sign};}
+  function hand(w){const base=w.profile.asset==='anthony'?1:-1,current=w.poseSign||(Math.cos(w.heading)<0?-1:1),old=w.previousSign||current,sign=old+(current-old)*smooth(w.blend);return {x:w.x+sign*29,y:w.y-w.height*.62+Math.sin(w.time*1.7)*.6,base,sign};}
   function triangle(g,image,s,d){
     const [a,b,c]=s,[p,q,r]=d,den=a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y);if(Math.abs(den)<.001)return;
     const coefficient=(v1,v2,v3)=>[(v1*(b.y-c.y)+v2*(c.y-a.y)+v3*(a.y-b.y))/den,(v1*(c.x-b.x)+v2*(a.x-c.x)+v3*(b.x-a.x))/den,(v1*(b.x*c.y-c.x*b.y)+v2*(c.x*a.y-a.x*c.y)+v3*(a.x*b.y-b.x*a.y))/den];
@@ -75,10 +75,6 @@
     g.restore();
   }
   function draw(g,w,images,fallback){
-    if(w.profile.asset==='hank'&&window.IslandHankRig&&images?.views?.naturalWidth){
-      for(const item of w.items||[])if(item!==w.prop)prop(g,w,item);
-      window.IslandHankRig.draw(g,w,images);prop(g,w,w.prop);return;
-    }
     g.save();g.fillStyle='#49342626';g.beginPath();g.ellipse(w.x,w.y+2,29,8,0,0,Math.PI*2);g.fill();g.restore();
     if(!images?.seats||!images?.gestures||!images?.views){
       if(fallback?.naturalWidth){const [x,y,width,height,footX,footY]=bounds[w.profile.asset].seats[2],s=w.height/height;g.save();g.translate(w.x,w.y);g.scale(Math.cos(w.heading)<0?1:-1,1);g.drawImage(fallback,x,y,width,height,(x-footX)*s,(y-footY)*s,width*s,height*s);g.restore();}return;
