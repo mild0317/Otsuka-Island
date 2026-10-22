@@ -9,7 +9,7 @@
   const seats={
     library:{computer:{empty:'office',occupied:'hank',x:510,y:355,width:319,height:308,flip:false,body:[700,663]},second:{empty:'office',occupied:'hank',x:910,y:415,width:319,height:308,flip:true,body:[1045,723]}},
     clock:{computer:{empty:'office',occupied:'princessOffice',x:1043,y:481,width:319,height:308,flip:true,body:[1175,789]},stool:{empty:'round',occupied:'princessRound',x:458,y:425,width:332,height:321,flip:false,body:[660,746]}},
-    lab:{computer:{empty:'mint',occupied:'anthony',x:924,y:335,width:295,height:285,flip:true,body:[1040,620]},second:{empty:'mint',occupied:'anthony',x:278,y:335,width:295,height:285,flip:false,body:[465,620]}}
+    lab:{computer:{empty:'mint',occupied:'anthony',x:924,y:371,width:295,height:285,flip:true,body:[1040,656]},second:{empty:'mint',occupied:'anthony',x:278,y:371,width:295,height:285,flip:false,body:[465,656]}}
   };
   const images={},loads={};
   const keys=key=>[...new Set(Object.values(seats[key]||{}).flatMap(s=>[s.empty,s.occupied]))];
