@@ -89,8 +89,7 @@
       if(t<1){paint(cache.a,w.previousPose,{x:head.x-a.head.x,y:head.y-a.head.y},w.previousSign||sign);ctx.globalAlpha=1-t;ctx.drawImage(cache.a,0,0);ctx.globalCompositeOperation='lighter';}
       paint(cache.b,w.pose,{x:head.x-b.head.x,y:head.y-b.head.y},sign);ctx.globalAlpha=t;ctx.drawImage(cache.b,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
     }
-    for(const item of w.items||[])if(item!==w.prop)prop(g,w,item);
-    g.drawImage(cache.layer,0,0,880,960,w.x-220,w.y-430,440,480);prop(g,w,w.prop);
+    g.drawImage(cache.layer,0,0,880,960,w.x-220,w.y-430,440,480);
   }
   window.IslandNPCRenderer=Object.freeze({draw,hand,bounds,poses,seatOffset});
 })();
