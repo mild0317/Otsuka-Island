@@ -97,8 +97,8 @@ try {
   const targetScreen = await evaluate('islandGame.worldToScreen({x:625,y:1540})');
   const canvasRect = await evaluate('(()=>{const r=document.querySelector("canvas").getBoundingClientRect();return {x:r.x,y:r.y}})()');
   await click(targetScreen.x + canvasRect.x, targetScreen.y + canvasRect.y);
-  await delay(2000);
-  const arrived = await evaluate('islandGame.getState()');
+  let arrived;
+  for(let i=0;i<80;i++){await delay(100);arrived=await evaluate('islandGame.getState()');if(!arrived.moving&&Math.hypot(arrived.x-625,arrived.y-1540)<2)break;}
   check(!arrived.moving && Math.hypot(arrived.x-625,arrived.y-1540) < 2, 'Pointer retarget reaches clicked ground and stops');
   await delay(600);
   const resting = await evaluate('islandGame.getState()');

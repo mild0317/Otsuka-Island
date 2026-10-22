@@ -2,11 +2,15 @@
 
 浮空島互動測試版。純 HTML、CSS、JavaScript，沒有外部套件或網路素材。
 
+第 25 版調整人物步態、坐姿與設備面向。三位工作人員放大約 10%，房內塚博士維持原本高度 280。博士衣身到雙腳共用連續網格；`gait.js` 管理左右腳支撐與抬腳週期。工作姿勢改為面向設備的後側視角，按椅面定位完整坐姿，設備光暈留在人物後方，零件盒內 PCB 不再浮在櫃子前。新素材記錄見 [npc-prompts-v24.md](assets/npc-prompts-v24.md)。
+
+人物驗證：`node check-gait.mjs`、`node check-npc-behavior.mjs`；啟動 `node serve.mjs` 後依序執行 `node check-preview.mjs`、`node check-npc-browser.mjs`、`node check-rooms.mjs`、`node check-cat-browser.mjs`。瀏覽器測試共用除錯埠，請勿同時執行。
+
 手機與桌機測試網址：<https://mild0317.github.io/Otsuka-Island/>。手機直接以 Safari 或 Chrome 開啟即可，不需要與電腦連上相同 Wi-Fi。
 
 ## 開啟測試
 
-直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`doctor-greetings.js`、`room-topics.js`、`room-world.js`、`npc-routines.js`、`npc-life.js`、`npc-renderer.js`、`cat-terrain.js`、`island-cat.js`、`life.js`、`rooms.js`、`outlines.js`、`audio.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角提供音符、「完整小島」與「工具」三個小按鈕；開啟工具後可看到「互動測試版 23」、音量與動態開關。載入文字為「正在前往Otsuka-Island」。已開啟舊頁面時請按 Ctrl+F5 更新。
+直接用 Chrome 或 Edge 開啟 `index.html` 即可。請保留同一資料夾中的 CSS、`game.js`、`doctor-greetings.js`、`room-topics.js`、`room-world.js`、`npc-routines.js`、`npc-life.js`、`npc-renderer.js`、`cat-terrain.js`、`island-cat.js`、`life.js`、`rooms.js`、`outlines.js`、`audio.js`、兩張原圖，以及完整 `assets/` 資料夾。目前預設為滿版島景，右下角提供音符、「完整小島」與「工具」三個小按鈕；開啟工具後可看到「互動測試版 25」、音量與動態開關。載入文字為「正在前往Otsuka-Island」。已開啟舊頁面時請按 Ctrl+F5 更新。
 
 也可以在此資料夾執行 `node serve.mjs`，開啟 <http://127.0.0.1:4173>。
 

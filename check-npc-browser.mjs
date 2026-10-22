@@ -52,29 +52,45 @@ try {
     const holeSize=()=>{const width=440,height=Math.floor(430-w.height*.30),pixels=g.getImageData(0,0,width,height).data,visited=new Uint8Array(width*height),queue=new Int32Array(width*height);let largest=0;
       for(let seed=0;seed<visited.length;seed++){if(visited[seed]||pixels[seed*4+3]>=16)continue;let head=0,tail=1,border=false;queue[0]=seed;visited[seed]=1;while(head<tail){const at=queue[head++],x=at%width,y=Math.floor(at/width);if(x===0||x===width-1||y===0||y===height-1)border=true;for(const next of [x?at-1:-1,x<width-1?at+1:-1,y?at-width:-1,y<height-1?at+width:-1])if(next>=0&&!visited[next]&&pixels[next*4+3]<16){visited[next]=1;queue[tail++]=next;}}if(!border)largest=Math.max(largest,tail);}
       return largest;};
-    for(const pose of ['front','back','side']){w.pose=w.previousPose=pose;let baseline=0,max=0;for(let i=0;i<7;i++){w.time+=2;w.phase=i*.9;w.speed=i?100:0;g.clearRect(0,0,440,480);IslandNPCRenderer.draw(g,w,__qaNPC.images[key]);const size=holeSize();if(!i)baseline=size;max=Math.max(max,size);}reports.push({pose,baseline,max,ok:max<=Math.max(35,baseline+20)});}
+    const feet=()=>{const pixels=g.getImageData(0,0,440,480).data,sums=[0,0],counts=[0,0];for(let y=Math.floor(430-w.height*.15);y<460;y++)for(let x=80;x<360;x++){if(pixels[(y*440+x)*4+3]<180)continue;const side=x<220?0:1;sums[side]+=y;counts[side]++;}return sums.map((n,i)=>n/(counts[i]||1));};
+    for(const pose of ['front','back','side']){w.pose=w.previousPose=pose;let baseline=0,max=0;for(let i=0;i<7;i++){w.time+=2;w.phase=i*.9;w.speed=i?100:0;w.gait=i?1:0;g.clearRect(0,0,440,480);IslandNPCRenderer.draw(g,w,__qaNPC.images[key]);const size=holeSize();if(!i)baseline=size;max=Math.max(max,size);}let alternating=true;
+      if(pose!=='side'){const samples=[];for(const phase of [Math.PI/2,Math.PI*1.5]){w.time+=2;w.phase=phase;w.gait=1;g.clearRect(0,0,440,480);IslandNPCRenderer.draw(g,w,__qaNPC.images[key]);samples.push(feet());}const left=samples[1][0]-samples[0][0],right=samples[1][1]-samples[0][1];alternating=left*right<0&&Math.min(Math.abs(left),Math.abs(right))>1.5;}
+      reports.push({pose,baseline,max,alternating,ok:max<=Math.max(35,baseline+20)&&alternating});}
     return reports;
+  }
+  function auditSeatedLegs(key,station){
+    const original=__qaNPC.workers[key],s=original.profile.stations[station],sign=s.look.x<s.x?-1:1,local={...s,seatHip:s.seatHip?.map((n,i)=>n-[s.x,s.y][i]+[220,430][i]),contact:s.contact?.map((n,i)=>n-[s.x,s.y][i]+[220,430][i])},w={...original,x:220,y:430,targetStation:local,station,kind:'type',pose:'sit',previousPose:'sit',poseSign:sign,previousSign:sign,blend:1,gait:0,items:[],prop:null,time:100};
+    const create=()=>{const c=document.createElement('canvas');c.width=500;c.height=520;return c;},actual=create(),expected=create(),g=actual.getContext('2d'),r=expected.getContext('2d'),b=IslandNPCRenderer.bounds[w.profile.asset].seats,[x,y,width,height,footX,footY]=b[0],scale=w.height/b[2][3],base=-1,mirror=base===sign?1:-1,shift=IslandNPCRenderer.seatOffset(w);
+    IslandNPCRenderer.draw(g,w,__qaNPC.images[key]);r.translate(w.x+shift[0],w.y+shift[1]);r.scale(mirror*scale,scale);r.drawImage(__qaNPC.images[key].seats,x,y,width,height,x-footX,y-footY,width,height);
+    const a=g.getImageData(0,0,500,520).data,e=r.getImageData(0,0,500,520).data;let total=0,match=0;
+    for(let y=Math.max(0,Math.floor(w.y+shift[1]-w.height*.18));y<520;y++)for(let x=0;x<500;x++){const i=(y*500+x)*4;if(e[i+3]>160){total++;if(a[i+3]>160)match++;}}
+    return {total,overlap:match/total};
   }
   for(const key of ['clock','library','lab']){
     await choose(key);await evaluate('__qaNPC.load('+JSON.stringify(key)+')');await evaluate('__qaNPC.update=()=>{}');
     check(await evaluate('islandGame.coworkerState('+JSON.stringify(key)+').assetsReady'),'All new pose sheets load: '+key);
     const pixels=await evaluate('('+auditWalking.toString()+')('+JSON.stringify(key)+')');
     check(pixels.every(p=>p.ok),'Front, back and side walking keep clothes intact: '+key+' '+JSON.stringify(pixels));
-    await place(key,'computer','type');await delay(180);await screenshot('npc-'+key+'-seated-v23.png');
-    await place(key,key==='lab'?'overview':'bench','work');await delay(180);await screenshot('npc-'+key+'-working-v23.png');
+    for(const station of await evaluate('Object.entries(__qaNPC.workers['+JSON.stringify(key)+'].profile.stations).filter(([,s])=>s.chair).map(([name])=>name)')){
+      await place(key,station,'type');await delay(100);await screenshot('npc-'+key+'-'+station+'-seated-v24.png');
+      const legs=await evaluate('('+auditSeatedLegs.toString()+')('+JSON.stringify(key)+','+JSON.stringify(station)+')');
+      check(legs.total>100&&legs.overlap>.93,'Seated shins and shoes retain their original shape: '+key+'/'+station+' '+legs.overlap.toFixed(3));
+    }
+    check(await evaluate('Number(getComputedStyle(document.querySelector(".room-world")).zIndex)>Number(getComputedStyle(document.querySelector(".room-objects")).zIndex)'),'Equipment glow stays behind the people: '+key);
+    await place(key,key==='lab'?'overview':'bench','work');await delay(180);await screenshot('npc-'+key+'-working-v24.png');
     for(const kind of ['scratch','fold','inspect']){
       await place(key,key==='lab'?'overview':'bench',kind);
       if(kind==='inspect')await evaluate('(()=>{const w=__qaNPC.workers['+JSON.stringify(key)+'];w.prop={kind:w.targetStation.prop,home:w.targetStation.item,location:"hands"};w.time+=1})()');
-      await delay(100);await screenshot('npc-'+key+'-'+kind+'-v23.png');
+      await delay(100);await screenshot('npc-'+key+'-'+kind+'-v24.png');
     }
     await place(key,'computer','sit');
     const transitions=await evaluate('(()=>{const w=__qaNPC.workers['+JSON.stringify(key)+'];w.previousPose="work";w.pose="sit";w.blend=0;const states=[];for(let i=0;i<15;i++){IslandNPCLife.prototype.update.call(__qaNPC,.05);states.push(__qaNPC.snapshot('+JSON.stringify(key)+').transition)}return states})()');
     check(transitions.every((v,i)=>!i||v>=transitions[i-1])&&transitions[0]<.1&&transitions.at(-1)>.7,'Sit transition eases through intermediate values: '+key);
-    await delay(100);await screenshot('npc-'+key+'-transition-v23.png');
+    await delay(100);await screenshot('npc-'+key+'-transition-v24.png');
     for(const [width,height]of [[390,844],[3840,2160]]){
       await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<900});await delay(100);
       check(await evaluate('(()=>{const r=document.querySelector(".room-scene").getBoundingClientRect();return r.left>=-1&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight+1})()'),'NPC room fits '+width+'x'+height+': '+key);
-      await screenshot('npc-'+key+'-'+width+'-v23.png');
+      await screenshot('npc-'+key+'-'+width+'-v24.png');
     }
     await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     await clickUI('.room-close');

@@ -394,11 +394,11 @@
   }
   function createClothingMesh(view) {
     const left = view.body[0][0], top = view.body[0][1] - 8;
-    const right = view.body[1][0], bottom = view.body[2][1];
+    const right = view.body[1][0], bottom = view.foot+4;
     const layer = document.createElement('canvas');
     const origin = P(left - 160, top - 180);
     layer.width = right - left + 320; layer.height = bottom - top + 230;
-    const columns = Math.ceil((right - left) / 13), rows = Math.ceil((bottom - top) / 13);
+    const columns = Math.ceil((right - left) / 16), rows = Math.ceil((bottom - top) / 16);
     const vertices = [], triangles = [];
     for (let row = 0; row <= rows; row++) for (let column = 0; column <= columns; column++) {
       const p = P(left + (right - left) * column / columns, top + (bottom - top) * row / rows);
@@ -435,27 +435,50 @@
     const w = Math.max(a.u, b.u, c.u) - u + 1, h = Math.max(a.v, b.v, c.v) - v + 1;
     g.drawImage(spriteTexture, u, v, w, h, u, v, w, h); g.restore();
   }
-  function drawClothing(view, angles, gait, target = ctx) {
+  function bodyPoint(view,p,pose){
+    const weight=1-smooth((p.y-570)/102),x=(p.x-view.cx)*(1+pose.breath*.018),y=(p.y-592)*(1+pose.breath*.028),c=Math.cos(pose.rotation),s=Math.sin(pose.rotation);
+    return {x:p.x+((x*c-y*s+view.cx)-p.x)*weight,y:p.y+((x*s+y*c+592+pose.bob-pose.breath*4)-p.y)*weight};
+  }
+  function drawClothing(view, angles, gait, target = ctx, waveAngle = 0, pose) {
     const mesh = view.mesh || (view.mesh = createClothingMesh(view));
     const stamp = Math.floor(clock * 30);
     if (mesh.stamp !== stamp) {
       mesh.stamp = stamp;
       for (const vertex of mesh.vertices) {
-        const hem = smooth((vertex.v - 465) / 138);
+        const hem = smooth((vertex.v - 465) / 138)*(1-smooth((vertex.v-598)/35));
         const panel = view === FRONT ? smooth((Math.abs(vertex.u - view.cx) - 36) / 65) : 1;
         const wind = Math.sin(animationTime * 2.2 + (vertex.u - view.cx) * .013) * (8 + gait * 7);
         vertex.x = vertex.u + wind * hem * panel;
         vertex.y = vertex.v + Math.sin(animationTime * 2.8 + vertex.u * .01) * (2.5 + gait * 2) * hem * panel;
         view.arms.forEach((arm, i) => {
           const weight = vertex.weights[i]; if (!weight) return;
-          const [px, py] = arm.pivot, angle = angles[i], cosine = Math.cos(angle), sine = Math.sin(angle);
+          const [px, py] = arm.pivot, angle = i===0&&waveAngle?0:angles[i], cosine = Math.cos(angle), sine = Math.sin(angle);
           const x = vertex.u - px, y = vertex.v - py;
           vertex.x += ((x * cosine - y * sine + px) - vertex.u) * weight;
           vertex.y += ((x * sine + y * cosine + py) - vertex.v) * weight;
         });
+        if(vertex.v>590){
+          const sourceX=vertex.u-view.cx,index=sourceX<0?0:1,step=IslandGait.sample(pose.phase,index,{stride:view===SIDE?52:24,lift:19,heading:view===SIDE?0:Math.PI/2}),offset=IslandGait.deform(vertex.v,590,628,652,step);
+          vertex.x+=offset.x*gait;vertex.y+=offset.y*gait;
+        }
+        const body=bodyPoint(view,{x:vertex.x,y:vertex.y},pose);vertex.x=body.x;vertex.y=body.y;
       }
       mesh.context.clearRect(0, 0, mesh.canvas.width, mesh.canvas.height);
+      if(waveAngle){
+        // A raised sleeve rotates as a complete limb. Stretching the connected
+        // torso texture into the raised arm creates an unnatural fabric fan.
+        mesh.context.save();mesh.context.translate(-mesh.origin.x,-mesh.origin.y);mesh.context.beginPath();
+        const move=poly=>poly.map(([x,y])=>{const p=bodyPoint(view,{x,y},pose);return[p.x,p.y];});
+        polygon(move([[316,392],[545,392],[550,465],[565,605],[565,677],[294,677],[294,605],[307,470]]),mesh.context);
+        polygon(move(view.arms[1].poly),mesh.context);mesh.context.clip();mesh.context.translate(mesh.origin.x,mesh.origin.y);
+      }
       for (const indices of mesh.triangles) texturedTriangle(mesh.context, ...indices.map(i => mesh.vertices[i]), mesh.origin);
+      if(waveAngle){
+        mesh.context.restore();const g=mesh.context,arm=view.arms[0];g.save();g.translate(-mesh.origin.x,-mesh.origin.y);g.translate(view.cx,592);g.rotate(pose.rotation);g.scale(1+pose.breath*.018,1+pose.breath*.028);g.translate(-view.cx,-592+pose.bob-pose.breath*4);
+        piece(arm.poly,arm.pivot,waveAngle,0,0,[],g);
+        // A small shoulder cap covers the joint without deforming the coat.
+        g.beginPath();g.ellipse(326,420,16,17,0,0,Math.PI*2);g.clip();g.drawImage(spriteTexture,334,411,25,32,310,403,32,34);g.restore();
+      }
     }
     activeClothing = mesh;
     target.drawImage(mesh.canvas, mesh.origin.x, mesh.origin.y);
@@ -465,6 +488,7 @@
     renderDoctor(ctx, actor, {entry});
     if (actor.speech && clock < actor.speechUntil) drawSpeech();
   }
+  const doctorTurns=new WeakMap();
   function renderDoctor(g, subject, options = {}) {
     const transition = options.entry;
     const moving = subject.route.length > 0 || !!transition;
@@ -473,15 +497,19 @@
     const size = (options.height ?? (155 * perspective)) / 660;
     const waving = subject.wave > 0;
     const waveElapsed = 3.2 - subject.wave;
-    const waveEnvelope = waving ? Math.min(1, waveElapsed / .45, subject.wave / .55) : 0;
+    const waveEnvelope = waving ? smooth(waveElapsed/.6)*smooth(subject.wave/.7) : 0;
     let view = FRONT, mirror = 1;
     if (!waving && (moving || subject.lookAt)) {
       const dx = Math.cos(subject.facing), dy = Math.sin(subject.facing);
       if (Math.abs(dx) > .52) { view = SIDE; mirror = dx < 0 ? -1 : 1; }
       else if (dy < -.2) view = BACK;
     }
-    // The brief asks for a visible turn: blend the width during the initial change of heading.
-    const turnWidth = 1 - Math.sin(subject.turn * Math.PI) * .16;
+    let turn=doctorTurns.get(subject);
+    if(!turn){turn={view,mirror,previousView:view,previousMirror:mirror,changed:-10};doctorTurns.set(subject,turn);}
+    // Stopping retains the direction of the last step. Direction changes are
+    // eased as complete poses instead of instantly swapping/flipping sprites.
+    if(!moving&&!subject.lookAt&&!waving){view=turn.view;mirror=turn.mirror;}
+    if((view!==turn.view||mirror!==turn.mirror)&&clock-turn.changed>=.30){turn.previousView=turn.view;turn.previousMirror=turn.mirror;turn.view=view;turn.mirror=mirror;turn.changed=clock;}
     const into = transition ? smooth(transition.progress) : 0;
     const door = transition ? places[transition.key].door : subject;
     g.save();
@@ -489,27 +517,32 @@
     g.translate(subject.x + (door.x - subject.x) * into, subject.y + (door.y - subject.y) * into);
     g.scale(1 - into * .22, 1 - into * .22);
     g.fillStyle = '#263b3438'; g.beginPath(); g.ellipse(0, -1, 30 * perspective, 9 * perspective, -.12, 0, Math.PI * 2); g.fill();
-    g.scale(size * mirror * turnWidth, size);
-    g.translate(-view.cx, -view.foot);
-    // Alternating feet lift while the body follows a two-step rhythm, with no idle drift.
-    view.legs.forEach((leg, i) => {
-      const phase = subject.phase + i * Math.PI;
-      piece(leg.poly, leg.pivot, Math.sin(phase) * .23 * gait,
-        view === SIDE ? Math.sin(phase) * 13 * gait : 0, -Math.max(0, Math.cos(phase)) * 22 * gait, [], g);
-    });
+    g.scale(size,size);
+    const blend=smooth((clock-turn.changed)/.30);
+    if(blend<1){
+      if(!turn.layers)turn.layers=Array.from({length:3},()=>{const c=document.createElement('canvas');c.width=850;c.height=930;return c;});
+      const paint=(layer,v,m)=>{const p=layer.getContext('2d');p.setTransform(1,0,0,1,0,0);p.clearRect(0,0,850,930);p.translate(425,800);paintDoctorPose(p,subject,v,m,gait,waving,waveEnvelope,waveElapsed);};
+      paint(turn.layers[0],turn.previousView,turn.previousMirror);paint(turn.layers[1],turn.view,turn.mirror);
+      const p=turn.layers[2].getContext('2d');p.setTransform(1,0,0,1,0,0);p.clearRect(0,0,850,930);p.globalAlpha=1-blend;p.drawImage(turn.layers[0],0,0);p.globalCompositeOperation='lighter';p.globalAlpha=blend;p.drawImage(turn.layers[1],0,0);p.globalAlpha=1;p.globalCompositeOperation='source-over';g.drawImage(turn.layers[2],-425,-800);
+    }else paintDoctorPose(g,subject,turn.view,turn.mirror,gait,waving,waveEnvelope,waveElapsed);
+    g.restore();
+  }
+  function paintDoctorPose(g,subject,view,mirror,gait,waving,waveEnvelope,waveElapsed){
+    g.save();g.scale(mirror,1);g.translate(-view.cx,-view.foot);
+    const stride=Math.sin(subject.phase);
     const breath = (1 + Math.sin(animationTime * Math.PI * 2 / 3.6)) / 2;
     const bob = Math.cos(subject.phase * 2) * 4 * gait;
-    g.translate(view.cx, 592); g.rotate(stride * .018 * gait + waveEnvelope * .12);
-    g.scale(1 + breath * .018, 1 + breath * .028); g.translate(-view.cx, -592 + bob - breath * 4);
+    const pose={breath,bob,rotation:stride*.018*gait+waveEnvelope*.08,phase:subject.phase};
     const armAngles = view.arms.map((arm, i) => {
       const swing = view === SIDE ? .2 : .085;
       let rotation = Math.sin(subject.phase + (i ? Math.PI : 0)) * swing * gait + Math.sin(animationTime * 1.75 + i * 1.2) * .025;
-      if (i === 0 && waving) rotation = waveEnvelope * (1.42 + Math.sin(waveElapsed * 10) * .22);
+      if (i === 0 && waving&&view===FRONT) rotation = waveEnvelope * (1.20 + Math.sin(waveElapsed * 7.5) * .10);
       return rotation;
     });
     // Sleeves, torso and hem share vertices in one continuous textured surface.
     // There are no punched-out arm/coat polygons that can expose the background.
-    drawClothing(view, armAngles, gait, g);
+    drawClothing(view, armAngles, gait, g, waving&&view===FRONT?armAngles[0]:0,pose);
+    g.translate(view.cx,592);g.rotate(pose.rotation);g.scale(1+breath*.018,1+breath*.028);g.translate(-view.cx,-592+bob-breath*4);
     piece(view.head, [view.cx, 401], Math.sin(animationTime * 1.75 + .5) * .009 - waveEnvelope * .065, 0, -breath * 4, [], g);
     g.restore();
   }
@@ -753,7 +786,7 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,key==='hank'?'assets/npc-hank-seats-v23.png':'assets/npc-'+key+'-work-v21.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
     life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });

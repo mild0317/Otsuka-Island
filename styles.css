@@ -42,6 +42,7 @@ button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;color:inher
 .loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);z-index:10;color:#71816e;font-size:12px;letter-spacing:2px;transition:opacity .4s}.loading.done{opacity:0;pointer-events:none}.loader{width:24px;height:24px;border:2px solid #d4dccc;border-top-color:var(--ink);border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:760px){.brand>span:last-child{font-size:8px;letter-spacing:1.1px}.brand-mark{font-size:29px;width:25px}.header{top:max(12px,env(safe-area-inset-top));left:max(13px,env(safe-area-inset-left))}.scene-dock{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom))}.island-controls{right:max(12px,env(safe-area-inset-right));width:min(296px,calc(100vw - 24px))}.toast{left:12px;max-width:calc(100vw - 124px);font-size:10px;transform:translateY(8px)}.toast.show{transform:translateY(0)}}
 .room-objects{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.room-scene .room-world{z-index:2}
 .room-object{cursor:pointer;outline:none;pointer-events:none}
 .room-object path{stroke:#fff;stroke-linecap:round;stroke-linejoin:round;fill:none}
 .room-object .object-hit{fill:transparent;stroke:transparent;stroke-width:22px;pointer-events:all}

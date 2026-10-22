@@ -7,13 +7,13 @@
       for(const [key,profile] of Object.entries(IslandNPCRoutines.profiles)){
         const p=profile.stations[profile.start];
         this.workers[key]={key,profile,name:profile.name,x:p.x,y:p.y,height:profile.height,station:profile.start,heading:Math.atan2(p.look.y-p.y,p.look.x-p.x),phase:random()*6,time:0,elapsed:0,duration:8+random()*7,kind:'work',pose:'work',previousPose:'work',blend:1,route:[],steps:[],job:'initial',previousJob:'',speed:0,walkSpeed:100,blocked:0,prop:null,yielding:false,history:[],completed:0};
-        this.workers[key].items=Object.entries(profile.stations).filter(([,s])=>s.item).map(([station,s])=>({id:key+'-'+station,kind:s.prop,home:{...s.item},station,location:'table',progress:0}));
+        this.workers[key].items=Object.entries(profile.stations).filter(([,s])=>s.item).map(([station,s])=>({id:key+'-'+station,kind:s.prop,hiddenAtRest:!!s.storage,home:{...s.item},station,location:'table',progress:0}));
       }
     }
     load(key){
       const w=this.workers[key];if(!w)return Promise.resolve();if(this.loads[key])return this.loads[key];
       this.images[key]={};
-      this.loads[key]=Promise.all(['seats','gestures','views'].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src='assets/npc-'+w.profile.asset+'-'+part+'-v23.png';}))).then(()=>this.ready(key));
+      this.loads[key]=Promise.all(['seats','gestures','views'].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src='assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))).then(()=>this.ready(key));
       return this.loads[key];
     }
     ready(key){return ['seats','gestures','views'].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
@@ -22,7 +22,7 @@
     otherBodies(key){const d=this.getDoctor();return d?.location===key?[{...d,radius:67}]:[];}
     poseFor(w){
       if(w.prop&&w.kind==='walk')return 'hold';
-      if(['type','sit','seatedLook'].includes(w.kind))return 'sit';
+      if(['type','seatedWork','sit','seatedLook'].includes(w.kind))return 'sit';
       if(w.kind==='half')return 'half';
       if(['scratch','glasses'].includes(w.kind))return 'scratch';
       if(w.kind==='fold')return 'fold';
@@ -31,7 +31,7 @@
       if(w.kind==='walk')return Math.abs(Math.sin(w.heading))>.45?(Math.sin(w.heading)<0?'back':'front'):'side';
       return 'front';
     }
-    setPose(w){const pose=this.poseFor(w),sign=Math.cos(w.heading)<0?-1:1;if(pose!==w.pose||sign!==w.poseSign){w.previousPose=w.pose;w.previousSign=w.poseSign||sign;w.pose=pose;w.poseSign=sign;w.transitionDuration=(pose==='half'||w.previousPose==='half')?.65:.8;w.blend=0;}}
+    setPose(w){const pose=this.poseFor(w),sign=Math.cos(w.heading)<0?-1:1;if(w.kind==='walk'&&w.blend<1&&w.previousPose!==w.pose)return;if(pose!==w.pose||sign!==w.poseSign){w.previousPose=w.pose;w.previousSign=w.poseSign||sign;w.pose=pose;w.poseSign=sign;w.transitionDuration=(pose==='half'||w.previousPose==='half')?.65:.8;w.blend=0;}}
     start(w,step){
       w.kind=step.kind;w.elapsed=0;w.duration=step.time||0;w.station=step.station||w.station;w.targetStation=w.profile.stations[w.station];w.blocked=0;
       if(step.kind==='walk'){
@@ -64,6 +64,7 @@
       if(!(dt>0))return;
       for(const w of Object.values(this.workers)){
         w.time+=dt;w.blend=Math.min(1,w.blend+dt/(w.transitionDuration||.8));
+        w.gait=(w.gait||0)+((w.kind==='walk'?Math.min(1,w.speed/70):0)-(w.gait||0))*Math.min(1,dt*7);
         if(w.kind==='walk'){
           if(!w.route.length&&distance(w,w.goal||w)<2){w.speed*=Math.exp(-dt*9);this.next(w);continue;}
           w.blocked-=dt;
@@ -72,13 +73,15 @@
             if(!w.route.length&&w.yielding){const doctor=this.getDoctor(),end=doctor?.route?.at(-1)||w.yieldEnd;if(doctor?.location===w.key&&end){const alternative=this.yieldPoint(w,doctor,end);if(alternative){w.goal=alternative;w.route=nav.findPath(w,w.goal,this.otherBodies(w.key))||[];}}}
             w.blocked=.8+this.random()*.7;
           }
-          const desired=Math.min(w.walkSpeed,Math.max(28,distance(w,w.goal)*2.8));
+          const next=w.route[0],aim=next?Math.atan2(next.y-w.y,next.x-w.x):w.heading,error=Math.atan2(Math.sin(aim-w.heading),Math.cos(aim-w.heading));
+          w.heading+=error*Math.min(1,dt*7);this.setPose(w);
+          const desired=Math.min(w.walkSpeed,Math.max(28,distance(w,w.goal)*2.8))*(Math.abs(error)>.5?0:1);
           let budget=dt*(w.speed+=(desired-w.speed)*Math.min(1,dt*5));
           while(budget>0&&w.route.length){
             const p=w.route[0],d=distance(w,p);if(d<.1){w.route.shift();continue;}
             const n=Math.min(d,budget),next={x:w.x+(p.x-w.x)*n/d,y:w.y+(p.y-w.y)*n/d};
             if(!this.canStep(w,next)){w.speed=0;if(w.blocked<=0){w.route=[];w.blocked=.25;}break;}
-            const heading=Math.atan2(p.y-w.y,p.x-w.x);w.heading+=Math.atan2(Math.sin(heading-w.heading),Math.cos(heading-w.heading))*Math.min(1,dt*9);w.x=next.x;w.y=next.y;w.phase+=n*.055;budget-=n;if(n>=d)w.route.shift();
+            w.x=next.x;w.y=next.y;w.phase+=n*.055;budget-=n;if(n>=d)w.route.shift();
           }
           this.setPose(w);
         }else{
@@ -87,7 +90,7 @@
           this.setPose(w);
           if(w.prop){
             if(w.kind==='pick'){w.prop.location='lifting';w.prop.progress=ease((w.elapsed/w.duration-.25)/.75);if(w.elapsed>=w.duration)w.prop.location='hands';}
-            else if(w.kind==='place'){w.prop.location='lowering';w.prop.progress=1-ease(w.elapsed/w.duration);if(w.elapsed>=w.duration){w.prop.location='table';w.prop.station=w.station;w.prop.progress=0;w.lastPlacedId=w.prop.id;w.prop=null;}}
+            else if(w.kind==='place'){w.prop.location='lowering';w.prop.progress=1-ease(w.elapsed/w.duration);if(w.elapsed>=w.duration){w.prop.location='table';w.prop.station=w.station;w.prop.hiddenAtRest=!!w.targetStation.storage;w.prop.progress=0;w.lastPlacedId=w.prop.id;w.prop=null;}}
           }
           if(w.elapsed>=w.duration)this.next(w);
         }
