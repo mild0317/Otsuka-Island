@@ -9,7 +9,7 @@
 
 用 PowerPoint 修改或替換上述同名檔案，再將 PPT 檔同步到 GitHub 的 main 分支。GitHub Actions 會自動轉為 4K 投影片並發布；不用修改 HTML 或 JavaScript。只修改電腦裡的檔案還不會更新公開網站。
 
-可直接在 GitHub 的 PPT 資料夾使用「Add file → Upload files」上傳同名檔並提交。發布進度在專案 Actions 頁查看，成功後重新整理網站。
+建議使用 GitHub Desktop 同步：在本機替換 PPT 後，提交變更並按 Push origin。製作簡報目前超過 GitHub 網頁單檔上傳的 25 MiB 限制，請用 GitHub Desktop 或 git push。其餘較小檔案也可以在 GitHub 的 PPT 資料夾使用「Add file → Upload files」上傳同名檔。發布進度在專案 Actions 頁查看，成功後重新整理網站。
 
 本機預覽：關閉正在編輯的簡報後，在專案目錄執行 `powershell -ExecutionPolicy Bypass -File scripts/export-ppt.ps1`，再開啟本機網頁伺服器。此方式使用電腦已安裝的 PowerPoint。
 
