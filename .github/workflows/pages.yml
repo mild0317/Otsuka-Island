@@ -26,7 +26,7 @@ jobs:
       - name: Prepare public website
         run: |
           mkdir _site
-          cp *.html *.js *.css .nojekyll _site/
+          cp *.html *.js *.css .nojekyll Otsuka-Island.jpg Otsuka-Docter.jpg _site/
           cp -r assets PPT _site/
       - uses: actions/upload-pages-artifact@v4
         with:
