@@ -63,6 +63,7 @@
       this.$('.copyright-close').addEventListener('click',()=>this.closeCopyright());
       copyright.addEventListener('cancel',e=>{e.preventDefault();e.stopPropagation();this.closeCopyright();});
       copyright.addEventListener('click',e=>{if(e.target===copyright)this.closeCopyright();});
+      const ppt=document.createElement('div');ppt.className='ppt-viewer';this.$('.room-content').append(ppt);this.ppt=new IslandPPTViewer(ppt);this.$('.room-topic-dialog').classList.add('ppt-dialog');
       const marks=this.$('.room-clock-marks');
       for(let i=0;i<12;i++){const angle=i*Math.PI/6,line=document.createElementNS('http://www.w3.org/2000/svg','path');line.setAttribute('d',`M${Math.sin(angle)*35} ${-Math.cos(angle)*35}L${Math.sin(angle)*32} ${-Math.cos(angle)*32}`);line.setAttribute('stroke','#6e5740');line.setAttribute('stroke-width','1');marks.append(line);const text=document.createElementNS('http://www.w3.org/2000/svg','text');text.setAttribute('x',Math.sin(angle)*27);text.setAttribute('y',-Math.cos(angle)*27);text.setAttribute('fill','#6e5740');text.setAttribute('font-size','8');text.setAttribute('font-family','Georgia,serif');text.setAttribute('text-anchor','middle');text.setAttribute('dominant-baseline','central');text.textContent=i||12;marks.append(text);}
       topic.addEventListener('cancel',e=>{e.preventDefault();e.stopPropagation();this.showRoom(true);});
@@ -188,7 +189,7 @@
       const station = rooms[this.key]?.stations[index];if(!station)return;
       this.resetDemo(); this.activeStation = index; this.$('.room-content').hidden = false;
       this.$('.room-topic-list').open = false;
-      this.$('.room-detail h3').textContent = station[0]; this.$('.room-detail p').textContent = station[1];
+      this.$('.room-detail h3').textContent = rooms[this.key].name; this.$('.room-detail p').textContent = '';this.ppt.open(this.key);
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
       this.$('.room-topic-dialog').showModal();this.$('.room-content').scrollTop=0;
       this.$('.room-detail h3').focus({ preventScroll: true });

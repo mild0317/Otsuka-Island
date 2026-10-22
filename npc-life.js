@@ -136,7 +136,23 @@
     // routes around whatever furniture spot they are settled at.
     requestYield(){}
     allowsDoctorStep(key,from,to){return IslandCatTerrain.peopleClear(from,to,this.people(key),66);}
-    draw(key,g,art){const w=this.workers[key];if(!w)return;IslandNPCRenderer.draw(g,w,this.images[key],this.fallbackImages[w.profile.asset]);const back=w.targetStation?.back;if(back&&w.pose==='sit'&&w.blend>.6&&art?.naturalWidth){g.save();g.beginPath();back.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.clip();g.drawImage(art,0,0,1536,1024);g.restore();}}
+    draw(key,g,art){
+      const w=this.workers[key];if(!w)return;
+      IslandNPCRenderer.draw(g,w,this.images[key],this.fallbackImages[w.profile.asset]);
+      if(w.pose!=='sit'||w.blend<=.6||!art?.naturalWidth)return;
+      // The backrest and foreground pedestal/casters belong in front of the
+      // seated body. Restore only their silhouettes, never a rectangular patch.
+      const fronts={
+        library:{
+          computer:[[[716,534],[731,529],[736,535],[732,599],[727,607],[727,616],[751,624],[758,630],[758,641],[748,647],[741,643],[743,633],[704,621],[704,644],[707,651],[704,660],[694,663],[690,656],[691,646],[694,620],[650,638],[650,647],[642,650],[639,643],[641,633],[693,611],[708,609]],[[652,610],[663,608],[672,612],[714,607],[718,615],[660,623],[650,621]]],
+          second:[[[997,586],[1007,583],[1015,589],[1017,650],[1022,657],[1045,658],[1047,678],[1094,693],[1103,699],[1104,710],[1096,716],[1088,710],[1089,702],[1046,690],[1048,718],[1047,731],[1040,736],[1032,730],[1033,719],[1034,691],[987,708],[988,714],[980,719],[972,713],[973,703],[980,697],[1029,680],[1030,660],[1011,654],[999,642]]]
+        },
+        clock:{stool:[[[652,675],[665,675],[669,710],[675,716],[704,722],[710,731],[707,738],[698,738],[695,730],[670,724],[667,745],[670,751],[665,758],[656,756],[654,748],[655,725],[630,737],[629,746],[620,749],[616,744],[618,735],[651,716]]],computer:[[[1138,655],[1147,654],[1152,663],[1155,711],[1161,724],[1170,731],[1194,736],[1202,742],[1200,752],[1191,754],[1187,746],[1167,742],[1166,769],[1170,778],[1166,785],[1156,783],[1154,774],[1155,745],[1123,758],[1123,767],[1115,771],[1109,766],[1111,757],[1153,733],[1146,716]] ]}
+      };
+      for(const polygon of [w.targetStation?.back,...(fronts[key]?.[w.station]||[])].filter(Boolean)){
+        g.save();g.beginPath();polygon.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.clip();g.drawImage(art,0,0,1536,1024);g.restore();
+      }
+    }
     snapshot(key){const w=this.workers[key];return w?{name:w.name,x:w.x,y:w.y,height:w.height,working:true,animationTime:w.time,action:w.kind,station:w.station,job:w.job,pose:w.pose,previousPose:w.previousPose,transition:ease(w.blend),heading:w.heading,speed:w.speed,route:w.route.map(p=>({...p})),goal:w.goal?{x:w.goal.x,y:w.goal.y}:null,yielding:w.yielding,prop:w.prop?{...w.prop,home:{...w.prop.home}}:null,habit:w.profile.habit,completed:w.completed,history:w.history.map(x=>({...x})),assetsReady:this.ready(key)}:null;}
   }
   IslandNPCLife.POSES=POSES;

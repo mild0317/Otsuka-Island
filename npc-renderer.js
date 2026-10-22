@@ -41,7 +41,7 @@
     const seat=pose==='sit',work=['work','sit'].includes(pose),breath=Math.sin(w.time*1.8)*.8,seatAmount=seat?1:pose==='half'?.5:0,shift=seatOffset(w,sign);
     const handPixels={princess:{sit:[140,510],work:[1100,397]},hank:{sit:[140,560],work:[1115,420]},anthony:{sit:[130,535],work:[1130,435]}},hp=handPixels[w.profile.asset][seat?'sit':'work'];
     const hx=(hp[0]-footX)*d.scale*mirror,hy=(hp[1]-footY)*d.scale,contact=w.targetStation?.contact;
-    const floorY=seat?w.targetStation?.floorY:undefined,extension=Number.isFinite(floorY)?Math.max(0,floorY-w.y-shift[1]):0;
+    const floorY=seat?w.targetStation?.floorY:undefined,extension=Number.isFinite(floorY)?Math.max(-28,floorY-w.y-shift[1]):0;
     const knots=seat&&extension?(w.profile.asset==='hank'?[735,755,810,815,875,890,900]:[685,750,790,805,815]):[];
     const rowY=[...new Set([...Array.from({length:19},(_,i)=>y+height*i/18),...knots.filter(v=>v>y&&v<y+height)])].sort((a,b)=>a-b),rows=rowY.length-1;
     for(let j=0;j<=rows;j++)for(let i=0;i<=cols;i++){
