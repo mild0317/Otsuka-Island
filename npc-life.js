@@ -13,10 +13,10 @@
     load(key){
       const w=this.workers[key];if(!w)return Promise.resolve();if(this.loads[key])return this.loads[key];
       this.images[key]={};
-      this.loads[key]=Promise.all(['seats','gestures','views'].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src='assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))).then(()=>this.ready(key));
+      this.loads[key]=Promise.all(['seats','gestures','views',...(w.profile.asset==='hank'?['skin','identity']:[])].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src=part==='skin'?'assets/hank-skin-v27.png':part==='identity'?'assets/hank-identity-v27.png':'assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))).then(()=>this.ready(key));
       return this.loads[key];
     }
-    ready(key){return ['seats','gestures','views'].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
+    ready(key){return ['seats','gestures','views',...(this.workers[key]?.profile.asset==='hank'?['skin','identity']:[])].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
     body(key){const w=this.workers[key];return w?{x:w.x,y:w.y,radius:66,name:w.name}:null;}
     people(key){const body=this.body(key);return body?[body]:[];}
     otherBodies(key){const d=this.getDoctor();return d?.location===key?[{...d,radius:67}]:[];}
@@ -75,7 +75,8 @@
           }
           const next=w.route[0],aim=next?Math.atan2(next.y-w.y,next.x-w.x):w.heading,error=Math.atan2(Math.sin(aim-w.heading),Math.cos(aim-w.heading));
           w.heading+=error*Math.min(1,dt*7);this.setPose(w);
-          const desired=Math.min(w.walkSpeed,Math.max(28,distance(w,w.goal)*2.8))*(Math.abs(error)>.5?0:1);
+          const projection=w.profile.asset==='hank'?(window.IslandHankRig?.travelScale(w.heading)||1):1;
+          const desired=Math.min(w.walkSpeed,Math.max(28,distance(w,w.goal)*2.8))*projection*(Math.abs(error)>.5?0:1);
           let budget=dt*(w.speed+=(desired-w.speed)*Math.min(1,dt*5));
           while(budget>0&&w.route.length){
             const p=w.route[0],d=distance(w,p);if(d<.1){w.route.shift();continue;}

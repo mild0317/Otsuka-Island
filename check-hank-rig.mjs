@@ -14,7 +14,7 @@ for(const kind of ['stand','half','sit','type','seatedLook','half','stand','walk
     const r=rig.solve(w),s=rig.snapshot(w);
     assert.equal(s.bones.length,21);
     for(const bone of s.bones){assert(bone.a.every(Number.isFinite)&&bone.b.every(Number.isFinite));if(bone.parent)assert(s.bones.some(b=>b.name===bone.parent));}
-    for(let side=0;side<2;side++)for(const [a,b,ratio]of [['hip','knee',.165],['knee','ankle',.165],['shoulder','elbow',.145],['elbow','hand',.145]])assert(Math.abs(distance(r.joints[a+side],r.joints[b+side])-h*ratio)<.001,kind+' preserves bone length '+a);
+    for(let side=0;side<2;side++)for(const [a,b,ratio]of [['hip','knee',.172],['knee','ankle',.172],['shoulder','elbow',.145],['elbow','hand',.145]])assert(Math.abs(distance(r.joints[a+side],r.joints[b+side])-h*ratio)<.001,kind+' preserves bone length '+a);
     if(previous){for(const key of Object.keys(r.joints)){const moved=distance(r.joints[key],previous[key]);maximum=Math.max(maximum,moved);assert(moved<13,'Joint continuity at '+kind+'/'+key+': '+moved);}}
     previous=structuredClone(r.joints);
   }
