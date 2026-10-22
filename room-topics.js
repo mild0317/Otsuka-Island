@@ -2,7 +2,7 @@
 // 圖像、流程與 PASS 皆為教學示意；不包含客戶實際板件或量測結果。
 window.IslandRoomTopics = {
   clock: {
-    name:'設計工作室', en:'EDA DESIGN STUDIO', image:'assets/room-design-v9.jpg', theme:'blue',
+    name:'設計工作室', en:'EDA DESIGN STUDIO', image:'assets/room-design-chair-clean-v42.png', theme:'blue',
     title:'從電路構想到 PCB 設計',
     lead:'先確認電路想法，再把原理圖、元件與佈線規則接起來。讓第一塊 PCB，有清楚的設計起點。',
     challenge:'麵包板已經能動了，接下來怎麼整理成可維護的原理圖？元件腳位、封裝與板上連線，如何保持一致？',
@@ -36,7 +36,7 @@ window.IslandRoomTopics = {
     deliverable:'一起界定 DFM 檢查範圍、資料交接方式與產線準備需求。',
   },
   library: {
-    name:'驗証工作室', en:'PCB VALIDATION STUDIO', image:'assets/room-verification-v7.jpg', theme:'green',
+    name:'驗証工作室', en:'PCB VALIDATION STUDIO', image:'assets/room-verification-chair-clean-v42.png', theme:'green',
     title:'PCB 規則檢查與量測比對',
     lead:'從「畫面上接好了」走到「檢查項目有依據」。將設計規則、電氣風險與實板觀察放在一起看。',
     challenge:'DRC 通過後還有疑慮？量測到異常，卻不知道應該從哪條走線或哪個設計條件開始追查？',
@@ -53,7 +53,7 @@ window.IslandRoomTopics = {
     extension:{name:'proFPGA',text:'若專案也包含 ASIC／SoC 的早期軟體與系統原型驗証，可延伸討論 proFPGA 的 FPGA 原型平台。',url:'https://resources.sw.siemens.com/en-US/fact-sheet-veloce-profpga/'},
   },
   lab: {
-    name:'模擬實驗室', en:'PCB SIGNAL & POWER INTEGRITY', image:'assets/room-simulation-v8.jpg', theme:'teal',
+    name:'模擬實驗室', en:'PCB SIGNAL & POWER INTEGRITY', image:'assets/room-simulation-chair-clean-v42.png', theme:'teal',
     title:'高速 PCB 的訊號與電源品質',
     lead:'先在電腦裡看看訊號怎麼走、電源怎麼送，再決定 PCB 該怎麼改。從問題位置找出可討論的改善方向。',
     challenge:'高速接口偶發錯誤、走線互相干擾，或負載一變電源就不穩？單看佈線畫面，常常很難判斷原因。',

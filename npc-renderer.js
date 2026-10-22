@@ -88,6 +88,7 @@
     g.restore();
   }
   function draw(g,w,images,fallback){
+    if(w.pose==='sit'&&window.IslandRoomSeating?.handles(w.key)){IslandRoomSeating.drawOccupied(g,w);return;}
     const seated=w.pose==='sit',shadowShift=seated?seatOffset(w):[0,0],shadowY=seated?(w.targetStation?.floorY??w.y+shadowShift[1]):w.y;
     g.save();g.fillStyle='#49342626';g.beginPath();g.ellipse(w.x+shadowShift[0],shadowY+2,29,8,0,0,Math.PI*2);g.fill();g.restore();
     if(!images?.seats||!images?.gestures||!images?.views){

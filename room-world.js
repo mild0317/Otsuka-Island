@@ -111,7 +111,8 @@
       if(c.width!==w||c.height!==h){c.width=w;c.height=h;}g.setTransform(w/1536,0,0,h/1024,0,0);g.clearRect(0,0,1536,1024);
       if(this.marker){g.save();g.strokeStyle='#bd704dbb';g.lineWidth=3;g.beginPath();g.ellipse(this.marker.x,this.marker.y,20+Math.sin(this.time*5)*2,7,0,0,Math.PI*2);g.stroke();g.restore();}
       const entities=[{actor:this.actor,draw:()=>this.renderCharacter?.(g,this.actor)}];
-      if(this.coworker)entities.push({actor:this.coworker,draw:()=>this.npcLife?this.npcLife.draw(this.key,g,this.art):drawCoworker(g,this.coworker,this.coworkerImages?.[this.coworker.asset],this.time)});
+      if(this.npcLife)for(const chair of IslandRoomSeating.emptyEntities(this.key,this.coworker))entities.push({actor:chair.actor,draw:()=>chair.draw(g)});
+      if(this.coworker)entities.push({actor:this.npcLife?.body(this.key)||this.coworker,draw:()=>this.npcLife?this.npcLife.draw(this.key,g,this.art):drawCoworker(g,this.coworker,this.coworkerImages?.[this.coworker.asset],this.time)});
       if(this.cat?.location===this.key)entities.push({actor:this.cat,draw:()=>this.cat.draw(g,this.key,rect.width/1536)});
       entities.sort((a,b)=>a.actor.y-b.actor.y);
       for(const entity of entities){entity.draw();if(entity.actor===this.cat&&this.cat.z>35)continue;for(const mask of this.layout.occluders){const x=entity.actor.x,front=mask.front;let depth=-Infinity;for(let i=1;i<front.length;i++){const [ax,ay]=front[i-1],[bx,by]=front[i];if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}}if(entity.actor.y>=depth||!this.art.naturalWidth)continue;g.save();g.beginPath();mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();g.drawImage(this.art,0,0,1536,1024);g.restore();}}

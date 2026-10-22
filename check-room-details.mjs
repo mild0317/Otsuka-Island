@@ -50,9 +50,9 @@ try {
     await choose(key);await evaluate('__qaNPC.load('+JSON.stringify(key)+')');await evaluate('__qaNPC.update=()=>{}');
     for(const station of key==='clock'?['computer','stool']:['computer','second']){
       await place(key,station,'type');await delay(120);await screenshot('seat-v36-'+key+'-'+station+'.png');
-      const contact=await evaluate('(()=>{const key='+JSON.stringify(key)+',w=__qaNPC.workers[key],c=document.createElement("canvas");c.width=1536;c.height=1024;const g=c.getContext("2d");IslandNPCRenderer.draw(g,w,__qaNPC.images[key]);const pixels=g.getImageData(0,0,1536,1024).data;let bottom=-1;outer:for(let y=1023;y>=0;y--)for(let x=0;x<1536;x++)if(pixels[(y*1536+x)*4+3]>180){bottom=y;break outer}let mask=null;if(w.targetStation.back){const x=key==="clock"?1144:w.station==="computer"?720:1010,y=key==="clock"?660:w.station==="computer"?530:590;__qaNPC.draw(key,g,document.querySelector("#room-art"));const actual=g.getImageData(x,y,1,1).data,ref=document.createElement("canvas");ref.width=1536;ref.height=1024;const rg=ref.getContext("2d");rg.drawImage(document.querySelector("#room-art"),0,0,1536,1024);const expected=rg.getImageData(x,y,1,1).data;mask=[0,1,2].every(i=>Math.abs(actual[i]-expected[i])<=2)}return{bottom,floor:w.targetStation.floorY,mask}})()');
-      check(Math.abs(contact.bottom-contact.floor)<3,'Rendered shoe sole touches the floor: '+key+'/'+station+' '+JSON.stringify(contact));
-      if(contact.mask!==null)check(contact.mask,'Chair back is composited in front of the person: '+key+'/'+station);
+      await waitFor('IslandRoomSeating.ready('+JSON.stringify(key)+')','Independent seat assets ready',400);
+      check(await evaluate('IslandRoomSeating.snapshot('+JSON.stringify(key)+',__qaNPC.workers['+JSON.stringify(key)+']).occupiedStation==='+JSON.stringify(station)),'The person-with-chair image replaces the empty chair: '+key+'/'+station);
+
     }
     if(key==='clock'){
       await evaluate('(()=>{const w=__qaNPC.workers.clock;w.x=910;w.y=875;w.station="pause";w.targetStation=w.profile.stations.pause;w.pose=w.previousPose="front";w.poseSign=w.previousSign=1;w.kind="stand";w.blend=1;w.time+=2})()');
