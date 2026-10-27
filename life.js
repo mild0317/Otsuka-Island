@@ -14,7 +14,7 @@
 
   class IslandBirds {
     constructor({ random = Math.random, isWalkable = () => true } = {}) {
-      this.random = random; this.isWalkable = isWalkable; this.birds = []; this.serial = 0; this.time = 0;
+      this.random = random; this.isWalkable = isWalkable; this.birds = [];this.active=true; this.serial = 0; this.time = 0;
       this.targetCount = Math.floor(this.random() * 4); this.nextPopulation = this.range(12, 22);
       this.roofs = [point(582, 171), point(618, 233), point(832, 648), point(960, 730), point(179, 865), point(330, 934), point(860, 1117)];
       this.grounds = [point(348, 1225), point(697, 1536), point(783, 1071), point(400, 685)];
@@ -49,8 +49,11 @@
       // Departures count toward the hard cap until they leave the scene.
       while (this.birds.length < this.targetCount && this.birds.length < 3) this.spawn(now);
     }
-    update(now, actor = null) {
+    update(now, actor = null, daylight = true) {
       this.time = now;
+      if(!daylight){this.active=false;this.birds=[];this.targetCount=0;return;}
+      if(!this.active){this.active=true;this.targetCount=Math.floor(this.random()*4);this.nextPopulation=now+this.range(12,24);}
+
       if (now >= this.nextPopulation) {
         this.targetCount = Math.floor(this.random() * 4); this.nextPopulation = now + this.range(12, 24);
         this.birds.slice(this.targetCount).forEach(bird => { bird.retiring = true; if (['perched', 'hopping', 'approaching', 'landing'].includes(bird.state)) this.depart(bird, now); });
@@ -87,7 +90,7 @@
       this.birds = this.birds.filter(bird => !bird.finished); this.balance(now);
     }
     snapshot() {
-      return { targetCount: this.targetCount, count: this.birds.filter(b => this.time >= b.visibleAt).length, birds: this.birds.filter(b => this.time >= b.visibleAt).map(b => ({ id: b.id, state: b.state, mode: b.mode, x: b.x, y: b.y })) };
+      return { active:this.active,targetCount: this.targetCount, count: this.birds.filter(b => this.time >= b.visibleAt).length, birds: this.birds.filter(b => this.time >= b.visibleAt).map(b => ({ id: b.id, state: b.state, mode: b.mode, x: b.x, y: b.y })) };
     }
   }
 
@@ -174,21 +177,101 @@
         nativeContext.restore();
       }
     }
+    // Remove only pale matte connected to transparency, never interior highlights.
+    const pixels=nativeContext.getImageData(0,0,native.width,native.height),rgba=pixels.data;
+    const count=native.width*native.height,depth=new Uint8Array(count),queue=new Int32Array(count);
+    const isMatte=i=>rgba[i*4+3]>0&&Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])>195&&Math.max(rgba[i*4],rgba[i*4+1],rgba[i*4+2])-Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])<48;
+    let head=0,tail=0,fringeRemoved=0;
+    for(let i=0;i<count;i++){
+      if(!isMatte(i))continue;
+      const x=i%native.width,y=Math.floor(i/native.width);
+      if((x&&rgba[(i-1)*4+3]<8)||(x<native.width-1&&rgba[(i+1)*4+3]<8)||(y&&rgba[(i-native.width)*4+3]<8)||(y<native.height-1&&rgba[(i+native.width)*4+3]<8)){depth[i]=1;queue[tail++]=i;}
+    }
+    const matteWidth=Math.ceil(scaleX*7);
+    while(head<tail){
+      const i=queue[head++],x=i%native.width,y=Math.floor(i/native.width);rgba[i*4+3]=0;fringeRemoved++;
+      if(depth[i]>=matteWidth)continue;
+      for(const j of [x?i-1:-1,x<native.width-1?i+1:-1,y?i-native.width:-1,y<native.height-1?i+native.width:-1]){
+        if(j>=0&&!depth[j]&&isMatte(j)){depth[j]=depth[i]+1;queue[tail++]=j;}
+      }
+    }
+    nativeContext.putImageData(pixels,0,0);
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
       { pivot: [749, 606], phase: 1.9, poly: [[695,450],[710,420],[740,404],[770,397],[794,391],[822,403],[838,426],[840,460],[832,483],[840,514],[831,541],[811,567],[778,579],[744,575],[721,551],[699,522],[693,491]] },
       { pivot: [127, 1014], phase: 4.1, poly: [[31,856],[42,837],[72,826],[104,814],[141,815],[161,829],[174,851],[171,877],[153,904],[141,931],[116,949],[83,965],[58,962],[38,938],[30,907]] }
     ].map(tree => ({ ...tree, patch: softPatch(tree.poly, native, 4) }));
-    function drawBase(t, g = ctx) {
+    const plants=[
+      {pivot:[620,720],phase:.7,poly:[[485,670],[720,665],[732,740],[510,765]]},
+      {pivot:[767,1100],phase:2.2,poly:[[620,1070],[850,1060],[845,1150],[630,1180]]},
+      {pivot:[240,1285],phase:4.5,poly:[[100,1230],[310,1240],[300,1340],[130,1320]]},
+      {pivot:[390,1510],phase:1.5,poly:[[330,1390],[455,1400],[470,1520],[340,1540]]},
+      {pivot:[1040,1490],phase:3.6,poly:[[1005,1440],[1085,1440],[1090,1630],[1020,1640]]},
+      {pivot:[190,1490],phase:5.1,poly:[[145,1470],[220,1470],[255,1700],[180,1710]]}
+    ].map(plant=>{
+      const patch=softPatch(plant.poly,native,3),g=patch.texture.getContext('2d'),data=g.getImageData(0,0,patch.texture.width,patch.texture.height);
+      for(let i=0;i<data.data.length;i+=4){const r=data.data[i],green=data.data[i+1],b=data.data[i+2];if(!(green>r*.9&&green>b*1.16&&green>32))data.data[i+3]=0;}
+      g.putImageData(data,0,0);return {...plant,patch};
+    });
+    const buildingSpecs=Object.entries({clock:{x:385,y:70,w:330,h:595},library:{x:585,y:625,w:470,h:460},lab:{x:95,y:870,w:350,h:355},workshop:{x:605,y:1105,w:470,h:420}}).map(([key,box])=>({key,...box,levels:{}}));
+    function buildingLevel(spec,size){
+      let entry=spec.levels[size];if(entry)return entry;
+      const image=new Image();image.decoding='async';image.fetchPriority='low';
+      entry={image,ready:false,failed:false,presentations:{}};spec.levels[size]=entry;
+      image.onload=()=>{entry.ready=true;};image.onerror=()=>{entry.failed=true;};
+      image.src='assets/building-'+spec.key+'-'+({1024:'1k',2048:'2k',4096:'4k'}[size])+'-v62.webp';return entry;
+    }
+    function drawBuildingDetails(g,lighting){
+      const matrix=g.getTransform(),density=Math.hypot(matrix.a,matrix.b);
+      for(const spec of buildingSpecs){
+        const left=spec.x*matrix.a+matrix.e,top=spec.y*matrix.d+matrix.f;
+        if(left+spec.w*density<0||top+spec.h*density<0||left>g.canvas.width||top>g.canvas.height)continue;
+        const pixels=Math.max(spec.w,spec.h)*density,renderSize=pixels>2200?4096:pixels>1100?2048:1024;
+        const full=buildingLevel(spec,4096);
+        const fallback=full.ready?null:buildingLevel(spec,1024);
+        const entry=full.ready?full:fallback?.ready?fallback:null;
+        if(!entry)continue;
+        // The source is always 4K once loaded. Cache its screen-size resampling
+        // so the four large textures do not need downsampling on every frame.
+        const sourceSize=Math.max(entry.image.naturalWidth,entry.image.naturalHeight);
+        const target=Math.min(renderSize,sourceSize);let texture=entry.image;
+        if(target<sourceSize){
+          texture=entry.presentations[target];
+          if(!texture){texture=surface(Math.round(entry.image.naturalWidth*target/sourceSize),Math.round(entry.image.naturalHeight*target/sourceSize));const p=texture.getContext('2d');p.imageSmoothingEnabled=true;p.imageSmoothingQuality='high';p.drawImage(entry.image,0,0,texture.width,texture.height);entry.presentations[target]=texture;}
+        }
+        spec.drawnSource=sourceSize;spec.renderSize=target;
+        g.drawImage(grade(texture,lighting),spec.x,spec.y,spec.w,spec.h);
+      }
+    }
+    const gradedTextures=new WeakMap();
+    function grade(texture,lighting){
+      const dusk=Math.round((lighting.dusk||0)*20)/20,night=Math.round((lighting.night||0)*10)/10;
+      if(!dusk&&!night)return texture;
+      const key=dusk+':'+night,old=gradedTextures.get(texture);if(old?.key===key)return old.canvas;
+      const canvas=surface(texture.width,texture.height),g=canvas.getContext('2d');
+      g.filter='sepia('+(dusk*.34)+') saturate('+(1+dusk*.12)+') brightness('+(1-dusk*.1-night*.12)+')';
+      g.drawImage(texture,0,0);g.filter='none';
+      if(dusk>0){const warmth=g.createLinearGradient(0,canvas.height,canvas.width,0);warmth.addColorStop(0,'#6d5b8b');warmth.addColorStop(.5,'#ba9481');warmth.addColorStop(1,'#ffd298');g.globalCompositeOperation='source-atop';g.globalAlpha=dusk*.20;g.fillStyle=warmth;g.fillRect(0,0,canvas.width,canvas.height);}
+      gradedTextures.set(texture,{key,canvas});return canvas;
+    }
+    function drawBase(t, g = ctx, lighting = {}) {
       // The complete, high-resolution island remains underneath every tree patch.
       // Feathered moving leaves cannot punch a transparent polygon seam into it.
-      g.drawImage(native, 0, 0, W, H);
-      for (const detail of detailLayers) g.drawImage(detail.texture,detail.x,detail.y,detail.size,detail.size);
+      g.drawImage(grade(native,lighting), 0, 0, W, H);
+      for (const detail of detailLayers) g.drawImage(grade(detail.texture,lighting),detail.x,detail.y,detail.size,detail.size);
+      drawBuildingDetails(g,lighting);
       for (const tree of trees) {
-        const breeze = Math.sin(t * .7 + tree.phase) * .018 + Math.sin(t * 1.3 + tree.phase) * .004;
+        const gust=.8+.35*Math.sin(t*.21+tree.phase*.5);
+        const breeze=(Math.sin(t*.65+tree.phase)*.027+Math.sin(t*1.45+tree.phase)*.007)*gust;
         const { texture, box } = tree.patch;
         g.save(); g.translate(...tree.pivot); g.rotate(breeze); g.translate(-tree.pivot[0], -tree.pivot[1]);
-        g.globalAlpha = .88; g.drawImage(texture, box.x, box.y, box.w, box.h); g.restore();
+        g.globalAlpha = .88; g.drawImage(grade(texture,lighting), box.x, box.y, box.w, box.h); g.restore();
+      }
+      for(const plant of plants){
+        const wind=Math.sin(t*.87+plant.phase)*.024+Math.sin(t*1.73+plant.phase)*.009;
+        const {texture,box}=plant.patch;g.save();g.translate(...plant.pivot);
+        g.transform(1,0,wind,1,Math.sin(t*.53+plant.phase)*1.2,0);g.translate(-plant.pivot[0],-plant.pivot[1]);
+        g.globalAlpha=.82;g.drawImage(grade(texture,lighting),box.x,box.y,box.w,box.h);g.restore();
       }
     }
 
@@ -316,6 +399,7 @@
       (reorderedArt ? relocatedScreens : screens).forEach(screen=>drawScreen(screen,t));
     }
     function drawBirds(t) {
+      if(!birds.active)return;
       for(const bird of birds.birds){
         if(t<bird.visibleAt)continue;
         const flight=['flying','approaching','landing','departing'].includes(bird.state);
@@ -344,8 +428,8 @@
     }
     return {
       drawBase,drawWater,drawInteriors,drawBirds,
-      update(t,actor){time=t;birds.update(t,actor);onBirdState?.(birds.birds,t);},
-      snapshot(){return{resolution:{width:native.width,height:native.height},detailTextures:Object.entries(detailImages).map(([key,image])=>({key,width:image.width,height:image.height})),displayResolution:{width:display.width,height:display.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
+      update(t,actor,daylight=true){time=t;birds.update(t,actor,daylight);onBirdState?.(birds.birds,t);},
+      snapshot(){return{buildingDetails:buildingSpecs.map(spec=>({key:spec.key,drawnSource:spec.drawnSource||0,renderSize:spec.renderSize||0,box:{x:spec.x,y:spec.y,w:spec.w,h:spec.h},levels:Object.entries(spec.levels).map(([size,entry])=>({size:Number(size),ready:entry.ready,failed:entry.failed,width:entry.image.naturalWidth,height:entry.image.naturalHeight}))})),fringeRemoved,plantPatches:plants.length,resolution:{width:native.width,height:native.height},detailTextures:Object.entries(detailImages).map(([key,image])=>({key,width:image.width,height:image.height})),displayResolution:{width:display.width,height:display.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
       treeCoverage
     };
   }

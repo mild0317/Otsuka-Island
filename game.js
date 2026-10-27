@@ -29,11 +29,11 @@
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
-  const reorderedArt=new Image(),workshopArt=new Image();
+  const reorderedArt=new Image(),workshopArt=new Image(),distantIslands=new Image(),skyPlate=new Image(),sunSky=new Image();
   const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
   const catImage=new Image(),catActions=new Image();let islandCat,npcLife;
   const coworkerImages=Object.fromEntries(['princess','anthony','hank'].map(key=>[key,new Image()]));
-  let life;
+  let life,atmosphere;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
   const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0, speech: '', speechUntil: 0 };
@@ -321,6 +321,27 @@
   $('#motion-toggle').addEventListener('click', () => setMotion(!motionEnabled));
   $('#light-time').addEventListener('input', event => { previewHour = Number(event.target.value); timeStamp = -1; updateLighting(); });
   $('#live-time').addEventListener('click', () => { previewHour = null; timeStamp = -1; updateLighting(); });
+  let windUIStamp=-1;
+  function updateWindControls(){
+    if(!atmosphere)return;
+    const wind=atmosphere.windSnapshot(),angle=Math.round(wind.direction)%360;
+    const names=['北','東北','東','東南','南','西南','西','西北'];
+    $('#wind-speed-value').textContent=Number(wind.speed.toFixed(2))+'×';
+    $('#wind-direction-value').textContent=names[Math.round(angle/45)%8]+' '+angle+'°';
+    $('#wind-arrow').style.transform='rotate('+angle+'deg)';
+    $('#wind-random').setAttribute('aria-pressed',String(wind.mode==='random'));
+    if(document.activeElement!==$('#wind-direction'))$('#wind-direction').value=angle;
+  }
+  $('#wind-speed').addEventListener('input',event=>{
+    atmosphere?.setWind({speed:Number(event.target.value)});updateWindControls();
+  });
+  $('#wind-direction').addEventListener('input',event=>{
+    atmosphere?.setWind({mode:'manual',direction:Number(event.target.value)});updateWindControls();
+  });
+  $('#wind-random').addEventListener('click',()=>{
+    if(atmosphere)atmosphere.setWind({mode:atmosphere.wind.mode==='random'?'manual':'random'});
+    updateWindControls();
+  });
   document.querySelectorAll('.place[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('#island-controls').hidden) { setControls(false, true); return; }
@@ -588,7 +609,9 @@
   function update(dt) {
     if(actor.speech && clock >= actor.speechUntil) clearSpeech();
     updateLighting();
-    life.update(animationTime, actor);
+    atmosphere.updateWind(animationTime);
+    if(windUIStamp!==Math.floor(clock*5)){windUIStamp=Math.floor(clock*5);updateWindControls();}
+    life.update(animationTime, actor,lighting.birdsActive);
     // Let the cat yield during user-initiated travel even if scenery is paused.
     islandCat?.update(motionEnabled||entry||actor.route.length?dt:0);
     npcLife?.update(motionEnabled?dt:0);
@@ -650,10 +673,10 @@
   }
   function draw() {
     ctx.clearRect(0, 0, width, height);
-    drawSky();
+    const atmosphereView={width,height,camera,baseScale,time:animationTime,lighting};
+    atmosphere.background(ctx,atmosphereView);
     const center = screenCenter();
     ctx.save(); ctx.translate(center.x, center.y); ctx.scale(camera.scale, camera.scale); ctx.translate(-camera.x, -camera.y);
-    drawClouds();
     drawLivingIsland();
     life.drawWater(animationTime);
     life.drawInteriors(animationTime);
@@ -666,38 +689,16 @@
       ctx.beginPath(); ctx.ellipse(marker.x, marker.y, 18 + pulse, 8 + pulse * .3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(marker.x, marker.y - 11, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#bd704d'; ctx.fill(); ctx.restore();
     }
-    life.drawBirds(animationTime);
+    if(lighting.birdsActive)life.drawBirds(animationTime);
     if(!roomExperience.key&&islandCat?.y<=actor.y)islandCat.draw(ctx,'island',camera.scale);
     drawDoctor();
     if(!roomExperience.key&&islandCat?.y>actor.y)islandCat.draw(ctx,'island',camera.scale);
-    drawCloudSea();
     ctx.restore();
+    atmosphere.foreground(ctx,atmosphereView);
     updateBuildingName();
   }
   function drawLivingIsland() {
-    life.drawBase(animationTime);
-  }
-  function drawSky(){
-    const sky=ctx.createLinearGradient(0,0,0,height);
-    sky.addColorStop(0,'#72bce9');sky.addColorStop(.50,'#b5ddf5');sky.addColorStop(1,'#eef8ff');
-    ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
-    if(!cloud.naturalWidth)return;
-    // Screen-space clouds fill wide monitors as well as tall phone screens.
-    for(let i=0;i<15;i++){
-      const w=Math.max(210,width*(.16+(i%4)*.055)),span=width+w*2;
-      const x=((i*.287*span+animationTime*(4+i%5))%span)-w;
-      const y=height*(.04+(i%6)*.145)+Math.sin(animationTime*.035+i)*10;
-      ctx.save();ctx.globalAlpha=.35+(i%3)*.13;ctx.drawImage(cloud,x,y,w,w*cloud.height/cloud.width);ctx.restore();
-    }
-  }
-  function drawCloudSea(){
-    if(!cloud.naturalWidth)return;
-    // The near cloud bank surrounds only the rock underside, never the roads.
-    for(let i=0;i<7;i++){
-      const w=440+(i%3)*130,x=((i*251+animationTime*(5+i%3)+520)%(W+1040))-520;
-      const y=1845+Math.sin(animationTime*.035+i)*24+(i%2)*45;
-      ctx.save();ctx.globalAlpha=.66;ctx.drawImage(cloud,x,y,w,w*cloud.height/cloud.width);ctx.restore();
-    }
+    life.drawBase(animationTime,ctx,lighting);
   }
   function updateLighting() {
     const now = Date.now();
@@ -711,8 +712,9 @@
     const hour = h + m / 60 + s / 3600;
     const sunAngle = (hour - 6) / 12 * Math.PI;
     const elevation = Math.max(0, Math.sin(sunAngle));
-    const length = 1 + (1 - elevation) * 2.5;
-    lighting = { hour: h, minute: m, second: s, shadowX: -Math.cos(sunAngle) * 40 * length, shadowY: 12 + elevation * 15, length, opacity: .045 + elevation * .14 };
+    const palette=IslandAtmosphere.lightAt(hour);
+    const length = 1 + (1 - elevation) * 2.5 + palette.dusk*.7;
+    lighting = { ...palette,hour: h, minute: m, second: s, shadowX: -Math.cos(sunAngle) * 40 * length, shadowY: 12 + elevation * 15, length, opacity: .045 + elevation * .14 + palette.dusk*.10 };
     $('#island-time').textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     $('#time-mode').textContent = previewHour === null ? '台灣即時' : '光影預覽';
     $('#live-time').classList.toggle('selected', previewHour === null);
@@ -738,7 +740,8 @@
       ctx.rotate(Math.atan2(l.shadowY, l.shadowX));
       ctx.scale((30 + Math.hypot(l.shadowX, l.shadowY) * .65) * factor, 22 * factor);
       const gradient = ctx.createRadialGradient(0, 0, .12, 0, 0, 1);
-      gradient.addColorStop(0, `rgba(42,49,62,${l.opacity})`); gradient.addColorStop(.5, `rgba(42,49,62,${l.opacity * .7})`); gradient.addColorStop(1, 'rgba(42,49,62,0)');
+      const shade=l.dusk>.1?'65,40,66':'42,49,62';
+      gradient.addColorStop(0, `rgba(${shade},${l.opacity})`); gradient.addColorStop(.5, `rgba(${shade},${l.opacity * .7})`); gradient.addColorStop(1, `rgba(${shade},0)`);
       ctx.fillStyle = gradient; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI * 2); ctx.fill(); ctx.restore();
     }
     ctx.restore();
@@ -762,26 +765,6 @@
       hand((minute + second / 60) * Math.PI / 30, 26, 2.8, '#69513f');
       hand(second * Math.PI / 30, 28, 1.1, '#a45440');
       ctx.fillStyle = '#69513f'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    }
-  }
-  const clouds = [
-    { x: 930, y: 454, w: 320, speed: .11, phase: 0, alpha: .93 },
-    { x: 218, y: 637, w: 240, speed: .08, phase: 2, alpha: .95 },
-    { x: 1031, y: 1170, w: 270, speed: .07, phase: 4, alpha: .9 },
-    { x: 160, y: 1467, w: 280, speed: .06, phase: 1, alpha: .9 },
-    { x: 238, y: 1718, w: 310, speed: .09, phase: 3, alpha: .94 },
-    { x: 861, y: 1777, w: 410, speed: .055, phase: 5, alpha: .93 },
-    { x: 614, y: 1886, w: 290, speed: .065, phase: 2.5, alpha: .72 }
-  ];
-  function drawClouds() {
-    for (const c of clouds) {
-      const t = animationTime * c.speed + c.phase;
-      // Continuous wind avoids long, apparently frozen moments at sine extrema.
-      const x = ((c.x + animationTime * (10 + c.speed * 90) + 300) % (W + 600)) - 300;
-      const y = c.y + Math.sin(t * .65 + 1) * 16;
-      const h = c.w * cloud.height / cloud.width;
-      ctx.save(); ctx.globalAlpha = c.alpha * Math.min(1, (x + 300) / 110, (W + 300 - x) / 110);
-      ctx.drawImage(cloud, x - c.w / 2, y - h / 2, c.w, h); ctx.restore();
     }
   }
   function updateBuildingName() {
@@ -820,7 +803,8 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(workshopArt,'assets/island-workshop-reference-v48.png'),load(reorderedArt,'assets/island-building-swap-v47.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(sunSky,'assets/photographic-sun-sky-v60.png'),load(skyPlate,'assets/reference-sky-v55.png'),load(distantIslands,'assets/distant-islands-v51.png'),load(workshopArt,'assets/island-workshop-reference-v48.png'),load(reorderedArt,'assets/island-building-swap-v47.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+    atmosphere=new IslandAtmosphere(cloud,distantIslands,Math.random,skyPlate,sunSky);
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
     life = createIslandLife({ ctx, original: island, mask: islandMask, reorderedArt, workshopArt, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
@@ -844,7 +828,7 @@
     coworkerState:key=>npcLife?.snapshot(key),
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
-    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting } }),
+    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting },wind:atmosphere?.windSnapshot() }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
     isWalkable: p => !!ground(p, 22),
     sceneSnapshot: () => life?.snapshot(),

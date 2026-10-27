@@ -30,7 +30,7 @@
             <div class="room-stage" tabindex="0" aria-label="房間地圖，點地板走動，點設備靠近探索">
               <div class="room-scene">
                 <img id="room-art" alt="" decoding="async">
-                <div class="room-light" aria-hidden="true"></div>
+                <div class="room-light" aria-hidden="true"></div><div class="room-time-tone" aria-hidden="true"></div>
                 <svg class="room-clock" viewBox="0 0 1536 1024" role="img" aria-label="房內時鐘" hidden><g transform="translate(1144 182) matrix(.72 .24 0 1 0 0)"><circle r="40" fill="#f0e1c4" stroke="#97734d" stroke-width="1.6"/><g class="room-clock-marks"></g><g fill="none" stroke-linecap="round"><path class="room-clock-hour" d="M0 3V-20" stroke="#5f4936" stroke-width="3.7"/><path class="room-clock-minute" d="M0 4V-30" stroke="#5f4936" stroke-width="2.3"/><path class="room-clock-second" d="M0 7V-33" stroke="#ad563e" stroke-width=".9"/></g><circle r="2.8" fill="#5f4936"/></g></svg>
                 <svg class="room-objects" viewBox="0 0 1536 1024" aria-label="點選發光設備，進入主題"></svg>
                 <canvas class="room-world" width="1536" height="1024" aria-hidden="true"></canvas>
@@ -116,7 +116,7 @@
     setCoworkers(images){this.coworkerImages=images;}
     setNPCLife(service){this.npcLife=service;}
     resizeScene(){if(!this.key)return;const stage=this.$('.room-stage'),scene=this.$('.room-scene'),w=Math.min(stage.clientWidth,stage.clientHeight*1.5);scene.style.width=w+'px';scene.style.height=(w/1.5)+'px';this.world?.draw();}
-    update(dt,time){if(time&&this.key==='clock'){const {hour,minute,second}=time,svg=this.$('.room-clock');svg.dataset.time=[hour,minute,Math.floor(second)].map(v=>String(v).padStart(2,'0')).join(':');svg.setAttribute('aria-label','房內時鐘 '+svg.dataset.time);this.$('.room-clock-hour').setAttribute('transform',`rotate(${(hour%12+minute/60+second/3600)*30})`);this.$('.room-clock-minute').setAttribute('transform',`rotate(${(minute+second/60)*6})`);this.$('.room-clock-second').setAttribute('transform',`rotate(${second*6})`);}this.world?.update(dt,this.motion);}
+    update(dt,time){if(time)this.$('.room-scene').style.setProperty('--room-dusk',String(time.dusk||0));if(time&&this.key==='clock'){const {hour,minute,second}=time,svg=this.$('.room-clock');svg.dataset.time=[hour,minute,Math.floor(second)].map(v=>String(v).padStart(2,'0')).join(':');svg.setAttribute('aria-label','房內時鐘 '+svg.dataset.time);this.$('.room-clock-hour').setAttribute('transform',`rotate(${(hour%12+minute/60+second/3600)*30})`);this.$('.room-clock-minute').setAttribute('transform',`rotate(${(minute+second/60)*6})`);this.$('.room-clock-second').setAttribute('transform',`rotate(${second*6})`);}this.world?.update(dt,this.motion);}
     updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation!==null||pending===Number(b.dataset.station))));}
     open(key) {
       const room = rooms[key]; if (!room || this.key) return;
