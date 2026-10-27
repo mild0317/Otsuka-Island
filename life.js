@@ -91,7 +91,7 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, detailImages = {}, isWalkable, onBirdState, random = Math.random }) {
+  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, reorderedArt, workshopArt, detailImages = {}, isWalkable, onBirdState, random = Math.random }) {
     const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
     nativeContext.drawImage(original, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
@@ -153,7 +153,7 @@
       {key:'verification',x:175,y:935,size:270,poly:[[264,954],[405,1021],[414,1147],[390,1178],[336,1202],[304,1187],[279,1208],[190,1169],[188,1088],[210,1082],[260,1052]]},
       {key:'simulation',x:685,y:1190,size:350,poly:[[716,1240],[747,1209],[801,1198],[869,1204],[934,1231],[984,1275],[989,1392],[969,1429],[904,1462],[823,1468],[752,1448],[715,1425]]}
     ];
-    const detailLayers = detailSpecs.filter(s => detailImages[s.key]).map(spec => {
+    const detailLayers = detailSpecs.filter(s => detailImages[s.key]&&(!reorderedArt||s.key==='design'||s.key==='terrace')).map(spec => {
       const image = detailImages[spec.key], texture = surface(image.width,image.height), g = texture.getContext('2d');
       const coverage = surface(image.width,image.height), m = coverage.getContext('2d');
       g.drawImage(image,0,0); m.scale(image.width/spec.size,image.height/spec.size); m.translate(-spec.x,-spec.y);
@@ -161,6 +161,19 @@
       g.globalCompositeOperation = 'destination-in'; g.drawImage(coverage,0,0);
       return {...spec,texture};
     });
+    if(reorderedArt){
+      // Only the building silhouettes change; original bridges, stairs, ground
+      // textures and cliffs retain their exact navigation coordinates.
+      for(const [key,contour] of Object.entries(IslandOutlines.replacedBuildings)){
+        nativeContext.save();nativeContext.scale(scaleX,scaleY);
+        nativeContext.clip(new Path2D(contour));nativeContext.clearRect(0,0,W,H);
+        if(key==='lower'&&workshopArt){
+          // Reuse the user's selected workshop artwork at its original island coordinates.
+          nativeContext.drawImage(workshopArt,0,0,W,H);
+        }else nativeContext.drawImage(reorderedArt,0,0,W,H);
+        nativeContext.restore();
+      }
+    }
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
       { pivot: [749, 606], phase: 1.9, poly: [[695,450],[710,420],[740,404],[770,397],[794,391],[822,403],[838,426],[840,460],[832,483],[840,514],[831,541],[811,567],[778,579],[744,575],[721,551],[699,522],[693,491]] },
@@ -228,6 +241,14 @@
       {quad:[[278,1008],[324,1025],[324,1072],[278,1055]],kind:'pcb',phase:0,occlusion:[[309,1047],[321,1051],[322,1070],[309,1065]]},
       {quad:[[342,1033],[396,1052],[396,1093],[342,1074]],kind:'pass',phase:2}
     ];
+    const relocatedScreens = [
+      {quad:[[758,849],[815,868],[815,892],[758,873]],kind:'pcb',phase:0},
+      {quad:[[845,872],[894,890],[894,915],[845,897]],kind:'pass',phase:2},
+      {quad:[[184,1048],[243,1030],[243,1080],[184,1097]],kind:'thermal',phase:1},
+      {quad:[[316,1031],[382,1055],[382,1090],[316,1067]],kind:'eye',phase:3},
+      {quad:[[751,1308],[792,1291],[792,1323],[751,1340]],kind:'pcb',phase:4},
+      {quad:[[830,1278],[880,1296],[880,1329],[830,1311]],kind:'pcb',phase:6}
+    ];
     const display=surface(768,480),displayContext=display.getContext('2d');
     displayContext.scale(6,6);
     function drawScreen(screen,t) {
@@ -292,7 +313,7 @@
       ctx.transform((b[0]-a[0])/128,(b[1]-a[1])/128,(d[0]-a[0])/80,(d[1]-a[1])/80,a[0],a[1]);ctx.drawImage(display,0,0,128,80);ctx.restore();
     }
     function drawInteriors(t) {
-      screens.forEach(screen=>drawScreen(screen,t));
+      (reorderedArt ? relocatedScreens : screens).forEach(screen=>drawScreen(screen,t));
     }
     function drawBirds(t) {
       for(const bird of birds.birds){

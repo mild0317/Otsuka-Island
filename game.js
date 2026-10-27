@@ -29,6 +29,7 @@
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
   const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
+  const reorderedArt=new Image(),workshopArt=new Image();
   const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
   const catImage=new Image(),catActions=new Image();let islandCat,npcLife;
   const coworkerImages=Object.fromEntries(['princess','anthony','hank'].map(key=>[key,new Image()]));
@@ -98,6 +99,16 @@
     library: { name: '驗証工作室', node: 24, door: P(293, 1159), hit: [[106, 985], [170, 858], [434, 985], [431, 1015], [417, 1011], [421, 1150], [390, 1180], [277, 1223], [115, 1150], [114, 1020], [103, 1020]] },
     lab: { name: '模擬實驗室', node: 33, door: P(777, 1432), hit: [[691, 1279], [707, 1230], [739, 1178], [802, 1147], [851, 1135], [856, 1114], [865, 1135], [917, 1154], [977, 1191], [1014, 1249], [1035, 1302], [1027, 1457], [974, 1490], [891, 1503], [788, 1490], [725, 1470], [696, 1438]] }
   };
+  // Room identities travel with their exterior, doorway, interior and PPT.
+  const previousPlaces={...places};
+  places.library={...previousPlaces.workshop,name:previousPlaces.library.name};
+  places.lab={...previousPlaces.library,name:previousPlaces.lab.name};
+  places.workshop={...previousPlaces.lab,name:previousPlaces.workshop.name};
+  places.workshop.door=P(751,1452);
+  places.workshop.hit=[[860,1115],[1065,1248],[1055,1425],[890,1515],[665,1450],[625,1380],[610,1255]];
+  Object.assign(BUILDING_NAME_ANCHORS,{library:[833,635],lab:[280,880],workshop:[856,1114]});
+  ['clock','library','lab','workshop'].forEach((key,index)=>{const button=document.querySelector('.place[data-place="'+key+'"]');button.querySelector('.place-icon').textContent=String(index+1).padStart(2,'0');button.parentElement.append(button);});
+  areas[1].name='驗証工作室前廣場';areas[2].name='模擬實驗室前庭';areas[3].name='製作工坊前廣場';
   const adjacency = nodes.map(() => []);
   links.forEach(([a, b]) => {
     const cost = distance(nodes[a], nodes[b]);
@@ -128,12 +139,11 @@
     return best.d <= snap ? best : null;
   }
   function resolveTarget(p) {
-    const floor = ground(p);
-    if (floor) return floor;
+    // A building-front click must not be stolen by the nearby floor snap zone.
     for (const [key, place] of Object.entries(places)) {
       if (inside(p, place.hit)) return { point: { ...nodes[place.node] }, anchors: [place.node], name: place.name, key };
     }
-    return null;
+    return ground(p);
   }
   function findPath(start, target) {
     const origin = ground(start, Infinity);
@@ -579,7 +589,8 @@
     if(actor.speech && clock >= actor.speechUntil) clearSpeech();
     updateLighting();
     life.update(animationTime, actor);
-    islandCat?.update(motionEnabled?dt:0);
+    // Let the cat yield during user-initiated travel even if scenery is paused.
+    islandCat?.update(motionEnabled||entry||actor.route.length?dt:0);
     npcLife?.update(motionEnabled?dt:0);
     if (roomExperience.key) { roomExperience.update(dt,lighting); return; }
     if (entry) {
@@ -639,7 +650,7 @@
   }
   function draw() {
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = '#f0ece5'; ctx.fillRect(0, 0, width, height);
+    drawSky();
     const center = screenCenter();
     ctx.save(); ctx.translate(center.x, center.y); ctx.scale(camera.scale, camera.scale); ctx.translate(-camera.x, -camera.y);
     drawClouds();
@@ -659,11 +670,34 @@
     if(!roomExperience.key&&islandCat?.y<=actor.y)islandCat.draw(ctx,'island',camera.scale);
     drawDoctor();
     if(!roomExperience.key&&islandCat?.y>actor.y)islandCat.draw(ctx,'island',camera.scale);
+    drawCloudSea();
     ctx.restore();
     updateBuildingName();
   }
   function drawLivingIsland() {
     life.drawBase(animationTime);
+  }
+  function drawSky(){
+    const sky=ctx.createLinearGradient(0,0,0,height);
+    sky.addColorStop(0,'#72bce9');sky.addColorStop(.50,'#b5ddf5');sky.addColorStop(1,'#eef8ff');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
+    if(!cloud.naturalWidth)return;
+    // Screen-space clouds fill wide monitors as well as tall phone screens.
+    for(let i=0;i<15;i++){
+      const w=Math.max(210,width*(.16+(i%4)*.055)),span=width+w*2;
+      const x=((i*.287*span+animationTime*(4+i%5))%span)-w;
+      const y=height*(.04+(i%6)*.145)+Math.sin(animationTime*.035+i)*10;
+      ctx.save();ctx.globalAlpha=.35+(i%3)*.13;ctx.drawImage(cloud,x,y,w,w*cloud.height/cloud.width);ctx.restore();
+    }
+  }
+  function drawCloudSea(){
+    if(!cloud.naturalWidth)return;
+    // The near cloud bank surrounds only the rock underside, never the roads.
+    for(let i=0;i<7;i++){
+      const w=440+(i%3)*130,x=((i*251+animationTime*(5+i%3)+520)%(W+1040))-520;
+      const y=1845+Math.sin(animationTime*.035+i)*24+(i%2)*45;
+      ctx.save();ctx.globalAlpha=.66;ctx.drawImage(cloud,x,y,w,w*cloud.height/cloud.width);ctx.restore();
+    }
   }
   function updateLighting() {
     const now = Date.now();
@@ -786,10 +820,10 @@
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(workshopArt,'assets/island-workshop-reference-v48.png'),load(reorderedArt,'assets/island-building-swap-v47.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
+    life = createIslandLife({ ctx, original: island, mask: islandMask, reorderedArt, workshopArt, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
     roomExperience.setCharacterRenderer((g, subject)=>renderDoctor(g, subject, {height:280, perspective:1}));
     islandCat=new IslandCat({image:catImage,actionImage:catActions,island:{points:nodes,doors:Object.fromEntries(Object.entries(places).map(([key,place])=>[key,{porch:{...nodes[place.node]},door:{...place.door}}])),isWalkable:p=>!!ground(p,22),findPath:(start,p)=>{const target=ground(p,22);return target?findPath(start,target):null;}},getPeople:location=>{const people=npcLife?.people(location)||[];if(location===(roomExperience.key||'island'))people.push(roomExperience.key?{...roomExperience.world.actor,radius:64}:entry?{x:actor.x+(places[entry.key].door.x-actor.x)*smooth(entry.progress),y:actor.y+(places[entry.key].door.y-actor.y)*smooth(entry.progress),radius:43}:actor);return people;},getPlayer:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:{location:'island',x:actor.x,y:actor.y},onVoice:voice=>islandAudio.catVoice(voice)});
     roomExperience.setCat(islandCat);
