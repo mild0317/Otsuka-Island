@@ -65,17 +65,18 @@ try {
       const oldBody=m.body,oldAz=m.azimuth,oldEl=m.elevation,normal=[a.sun(at(9)),a.moon(at(22))];let independent;
       try{m.body=()=>{throw Error('The star-map body projection must not be used')};m.azimuth=270;m.elevation=12;independent=[a.sun(at(9)),a.moon(at(22))].every((p,i)=>p.x===normal[i].x&&p.y===normal[i].y);}finally{m.body=oldBody;m.azimuth=oldAz;m.elevation=oldEl;}
       return {sunAnchors:anchors(sun),moonAnchors:anchors(moon),sunTravel:travel(sun),moonTravel:travel(moon),independent,
+        symmetric:[.1,.25,.4].every(p=>{const l=a.sun(at(6+p*12)),r=a.sun(at(18-p*12)),ml=a.moon(at(18+p*12)),mr=a.moon(at(6-p*12));return Math.abs(l.x+r.x-v.width)<1e-6&&Math.abs(l.y-r.y)<1e-6&&Math.abs(ml.x+mr.x-v.width)<1e-6&&Math.abs(ml.y-mr.y)<1e-6})&&Math.abs(a.sun(at(12)).x-v.width/2)<1e-6&&Math.abs(a.moon(at(0)).x-v.width/2)<1e-6,
         below:a.sun(at(5.75)).y>a.sun(at(5.75)).horizon&&a.sun(at(18.25)).y>a.sun(at(18.25)).horizon&&a.moon(at(17.75)).y>a.moon(at(17.75)).horizon&&a.moon(at(6.25)).y>a.moon(at(6.25)).horizon,
         midnight:Math.hypot(before.x-after.x,before.y-after.y),nightSun:a.sun(at(0)).alpha===0&&a.sun(at(22)).alpha===0,
         latitude:m.latitude,longitude:m.longitude};
     })()`);
-    check(track.sunAnchors&&track.moonAnchors&&track.sunTravel&&track.moonTravel&&track.below,'Sun and Moon rise at the far-left cloud horizon and set at the far-right '+width+' '+JSON.stringify(track));
+    check(track.sunAnchors&&track.moonAnchors&&track.sunTravel&&track.moonTravel&&track.below&&track.symmetric,'Sun and Moon have symmetric left-to-right tracks with centred high points '+width+' '+JSON.stringify(track));
     check(track.independent&&track.midnight<.1&&track.nightSun,'The scene tracks are independent of the star map and continuous through midnight '+width);
     check(Math.abs(track.latitude-(25+45.4/3600))<1e-10&&Math.abs(track.longitude-(121+27/60+48.7/3600))<1e-10,'True stars retain the requested observer at '+width);
-    for(const hour of [6,9,15,18,21,0]){await setHour(hour);await delay(100);await screenshot('horizon-track-'+width+'-'+hour+'-v91.png');}
+    for(const hour of [6,9,15,18,21,0]){await setHour(hour);await delay(100);await screenshot('horizon-track-'+width+'-'+hour+'-v94.png');}
     await evaluate('document.querySelector("#ui-toggle").click();document.querySelector(".playback-date-row").scrollIntoView({block:"center"})');await delay(100);
     check(await evaluate('(()=>{const r=document.querySelector(".playback-date-row").getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth})()'),'Read-only playback date fits viewport '+width);
-    await screenshot('playback-date-'+width+'-v91.png');await evaluate('document.querySelector("#ui-toggle").click()');
+    await screenshot('playback-date-'+width+'-v94.png');await evaluate('document.querySelector("#ui-toggle").click()');
   }
   await setHour(23.99);const day=await evaluate('islandGame.getState().lighting.day');
   await evaluate('document.querySelector("#motion-toggle").click()');await setRate(3600);

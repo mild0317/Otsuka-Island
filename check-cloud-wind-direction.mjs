@@ -66,7 +66,7 @@ try {
   })()`);
   check(projection.moves.every(m=>m.dx>0&&m.dy<0&&Math.abs(m.dx/-m.dy-1.5)<.05),'Actual far and foreground compositing preserve both screen axes '+JSON.stringify(projection));
   check(projection.stationary,'Cloud layers have no wind-independent container oscillation');
-  const zero=await evaluate(`(()=>{const original=__qaAtmosphere,a=new IslandAtmosphere(null,null,()=>.0235);window.__qaAtmosphere=original;a.setWind({mode:'manual',speed:0,direction:90});const p=a.cloudFlow(.3,.3,0);a.updateWind(200);const q=a.cloudFlow(.3,.3,200);return{still:p.u===q.u&&p.v===q.v,evolves:p.threshold!==q.threshold,offset:a.windSnapshot().offset}})()`);
-  check(zero.still&&zero.evolves,'Zero wind stops bulk translation while condensation can continue '+JSON.stringify(zero));
-  await screenshot('cloud-wind-direction-v87.png');check(errors.length===0,'No browser errors '+JSON.stringify(errors));
+  const zero=await evaluate(`(()=>{const original=__qaAtmosphere,a=new IslandAtmosphere(null,null,()=>.0235);window.__qaAtmosphere=original;a.setWind({mode:'manual',speed:0,direction:90});const p=a.cloudFlow(.3,.3,0);a.updateWind(200);const q=a.cloudFlow(.3,.3,200);return{still:a.windOffset.x===0&&a.windOffset.y===0,evolves:p.threshold!==q.threshold&&Math.abs(p.u-q.u)<.02&&Math.abs(p.v-q.v)<.01,offset:a.windSnapshot().offset}})()`);
+  check(zero.still&&zero.evolves,'Zero wind stops bulk transport while bounded local deformation continues '+JSON.stringify(zero));
+  await screenshot('cloud-wind-direction-v93.png');check(errors.length===0,'No browser errors '+JSON.stringify(errors));
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}

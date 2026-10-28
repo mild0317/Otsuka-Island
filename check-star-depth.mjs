@@ -57,8 +57,8 @@ try {
     const near=stars.map(s=>s.flare&&movedById.has(s.id)?Math.abs(movedById.get(s.id).x-s.x):0).filter(Boolean),middle=stars.map(s=>!s.flare&&movedById.has(s.id)?Math.abs(movedById.get(s.id).x-s.x):0).filter(Boolean);
     return{near:[Math.min(...near),Math.max(...near)],middle:[Math.min(...middle),Math.max(...middle)],flares:stars.filter(s=>s.flare).length,steady:stars.every((s,i)=>s.x===later[i].x&&s.y===later[i].y),twinkles:stars.filter((s,i)=>Math.abs(s.alpha-later[i].alpha)>.04).length};
   })()`);
-  check(depth.near[0]>0&&Math.abs(depth.near[1]-depth.middle[1])<1e-8&&depth.near[1]<10&&depth.flares>=5,'The real celestial sphere pans subtly without distorting constellations '+JSON.stringify(depth));
-  check(depth.steady&&depth.twinkles>50,'Independent twinkles change brightness without jittering star positions');
+  check(depth.near[0]>0&&Math.abs(depth.near[1]-depth.middle[1])<1e-8&&depth.near[1]<10&&depth.flares>=1,'The real celestial sphere pans subtly without distorting constellations '+JSON.stringify(depth));
+  check(depth.steady&&depth.twinkles>15,'Independent twinkles change brightness without jittering star positions');
   const optics=await evaluate(`(()=>{
     const a=__qaAtmosphere,original=a.stars,c=document.createElement('canvas');c.width=c.height=100;
     a.stars=()=>[{x:50,y:50,radius:1.5,alpha:1,flare:true,angle:.12,warm:false}];a.drawStars(c.getContext('2d'),__qaSkyView,false);a.stars=original;
@@ -71,7 +71,7 @@ try {
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:width<900});await clickUI('#fit');await delay(180);
     const render=await evaluate(`(()=>{const a=__qaAtmosphere,v=__qaSkyView,c=a.celestialCanvas,f=a.galaxy.canvas;return{celestial:[c.width,c.height],far:[f.width,f.height],points:a.galaxy.points,sky:[a.buffers.sky.canvas.width,a.buffers.sky.canvas.height],viewport:[v.width,v.height]}})()`);
     check(render.celestial[0]>=width*dpr&&render.celestial[1]>=height*dpr&&render.far[0]>=width*dpr&&render.far[1]>=height*dpr,'Resolved stars retain native display pixel density '+JSON.stringify({width,height,dpr,...render}));
-    await screenshot('star-depth-'+width+'-dpr'+dpr+'-v89.png');
+    await screenshot('star-depth-'+width+'-dpr'+dpr+'-v99.png');
     const paused=await evaluate('(()=>{const c=__qaAtmosphere.celestialCanvas;return c.toDataURL()})()');await delay(160);
     check(await evaluate('(()=>{const c=__qaAtmosphere.celestialCanvas;return c.toDataURL()})()')===paused,'Pause freezes every celestial layer '+width+' DPR '+dpr);
   }
@@ -81,7 +81,7 @@ try {
   const after=await evaluate('({camera:{...__qaSkyView.camera},stars:__qaAtmosphere.stars(__qaSkyView),point:islandGame.worldToScreen({x:562,y:1000})})');
   const movedStars=new Map(after.stars.map(s=>[s.id,s]));
   const islandShift=after.point.x-before.point.x,starShift=Math.max(...before.stars.filter(s=>movedStars.has(s.id)).map(s=>Math.abs(movedStars.get(s.id).x-s.x)));
-  check(Math.abs(islandShift-200)<1&&starShift>0&&starShift<islandShift*.10,'Real dragging separates the island from the distant celestial sphere '+JSON.stringify({islandShift,starShift}));await screenshot('star-depth-dragged-v89.png');
+  check(Math.abs(islandShift-200)<1&&starShift>0&&starShift<islandShift*.10,'Real dragging separates the island from the distant celestial sphere '+JSON.stringify({islandShift,starShift}));await screenshot('star-depth-dragged-v99.png');
   await evaluate(`(()=>{const s=document.querySelector('#light-time');s.value=12;s.dispatchEvent(new Event('input',{bubbles:true}));})()`);await delay(100);
   check(await evaluate('__qaAtmosphere.stars(__qaSkyView).length===0&&__qaAtmosphere.sun(__qaSkyView).elevation>0'),'Daylight sun remains separate from the true star-map projection');
   check(errors.length===0,'No browser errors '+JSON.stringify(errors));

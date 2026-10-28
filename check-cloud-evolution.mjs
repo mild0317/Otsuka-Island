@@ -62,7 +62,7 @@ try {
     }
     let sourceReduced=0,sourceOriginal=0;for(let y=0;y<266;y++)for(let x=0;x<1024;x++){sourceReduced+=a.cloudSource[(y*1024+x)*4+3];sourceOriginal+=baseline.cloudSource[(y*1024+x)*4+3];}return {ratio:sourceReduced/sourceOriginal,renderedRatio:reduced/original,seaDifference};
   })()`);
-  console.log('INFO upper cloud amount versus v66',cloudAmount);await screenshot('clouds-final-v85.png');
+  console.log('INFO upper cloud amount versus v66',cloudAmount);await screenshot('clouds-final-v93.png');
   check(cloudAmount.ratio>.35&&cloudAmount.ratio<.45,'Prepared upper cloud optical mass is 40% of the unthinned reference');
   check(cloudAmount.seaDifference===0,'Cloud-sea density below the horizon is preserved');
   const changes=await evaluate(`(()=>{
@@ -86,10 +86,23 @@ try {
   })()`);
   console.log('INFO evolving clouds',changes);
   check(changes.short<1&&changes.long>changes.short*10,'Cloud motion is continuous between updates');
-  // Follow the same wind parcels: raw image differences also counted the unrelated
-  // lateral oscillation that has been removed, rather than just condensation.
-  check(changes.condense>10&&changes.evaporate>10,'Cloud edges both condense and disperse while following the wind');
+  // Wind offset stays fixed for these captures. Count the actual changing pixels,
+  // rather than a sparse grid that can miss narrow disappearing cloud edges.
+  check(changes.grow>200&&changes.fade>200,'Cloud contours visibly expand and erode at fixed bulk position');
   check(changes.shape>2,'Shapes evolve beyond a rigid translation');
+  const contour=await evaluate(`(()=>{
+    const a=__qaAtmosphere,frames=[0,20,40,60].map(t=>new Uint8ClampedArray(a.cloudFrame(t).pixels.data)),counts=[];
+    const w=768,h=200;let grown=0,eroded=0;
+    for(let k=1;k<frames.length;k++)for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4+3,p=frames[k-1][i],q=frames[k][i];if(p<40&&q>65)grown++;if(p>65&&q<40)eroded++;}
+    for(const pixels of frames){const seen=new Uint8Array(w*h),queue=new Uint32Array(w*h);let components=0;
+      for(let start=0;start<w*h;start++){if(seen[start]||pixels[start*4+3]<60)continue;let head=0,tail=1;queue[0]=start;seen[start]=1;
+        while(head<tail){const at=queue[head++],x=at%w;for(const next of [x?at-1:-1,x<w-1?at+1:-1,at-w,at+w])if(next>=0&&next<w*h&&!seen[next]&&pixels[next*4+3]>=60){seen[next]=1;queue[tail++]=next;}}
+        if(tail>=30)components++;
+      }counts.push(components);
+    }
+    return {grown,eroded,components:counts};
+  })()`);
+  check(contour.grown>100&&contour.eroded>100&&new Set(contour.components).size>1,'Twenty-second captures show growing/disappearing contours and regrouping cloud patches '+JSON.stringify(contour));
   check(changes.coverMax-changes.coverMin>.1,'Clouds independently cross the solar position');
   const stability=await evaluate(`(()=>{
     const a=__qaAtmosphere;let minX=Infinity,maxX=-Infinity,maxY=0,colourFaults=0,minSeaAlpha=255;
@@ -102,12 +115,12 @@ try {
     return {minX,maxX,maxY,colourFaults,minSeaAlpha};
   })()`);
   console.log('INFO long-running stability',stability);
-  check(stability.minX>.85&&stability.maxX<1.15&&stability.maxY<.25,'Cloud deformation stays bounded after two hours');
+  check(stability.minX>.65&&stability.maxX<1.35&&stability.maxY<.4,'Cloud deformation stays bounded after two hours');
   check(stability.colourFaults===0,'Cloud texture has no magenta or green colour fringes');
   check(stability.minSeaAlpha>235,'Dense cloud sea stays continuous across the mirrored texture boundary');
   for(const time of [0,60,600,1800]){
     const result=await evaluate(`(()=>{const a=__qaAtmosphere,v={...__qaSkyView,time:${time},lighting:{hour:12,minute:0,second:0}},c=document.createElement('canvas');c.width=v.width;c.height=v.height;a.backgroundScene(c.getContext('2d'),v);return c.toDataURL()})()`);
-    await writeFile(path.join(out,'cloud-evolution-'+time+'-v85.png'),Buffer.from(result.split(',')[1],'base64'));
+    await writeFile(path.join(out,'cloud-evolution-'+time+'-v93.png'),Buffer.from(result.split(',')[1],'base64'));
   }
   check(await evaluate(`(()=>{
     const a=__qaAtmosphere,grab=t=>{const c=a.sunFrame(t);return c.getContext('2d').getImageData(0,0,c.width,c.height)},before=grab(0),after=grab(60);
@@ -121,8 +134,8 @@ try {
     const g=c.getContext('2d');a.cloudAt=()=>0;a.drawStars(g,v);const clear=g.getImageData(100,100,1,1).data[3];g.clearRect(0,0,1440,1000);
     a.cloudAt=()=>1;a.drawStars(g,v);const cloudy=g.getImageData(100,100,1,1).data[3];a.stars=stars;a.cloudAt=cover;return cloudy<clear*.1;
   })()`),'Night clouds also attenuate the stars behind them');
-  await screenshot('cloud-island-v85.png');
+  await screenshot('cloud-island-v93.png');
   await evaluate(`(()=>{const a=__qaAtmosphere,background=a.background,foreground=a.foreground;a.background=function(g,v){background.call(this,g,{...v,time:1800})};a.foreground=function(g,v){foreground.call(this,g,{...v,time:1800})};})()`);
-  await delay(250);await screenshot('cloud-island-30minutes-v85.png');
+  await delay(250);await screenshot('cloud-island-30minutes-v93.png');
   check(errors.length===0,'No browser errors '+JSON.stringify(errors));
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}

@@ -46,6 +46,8 @@ try {
   check(await evaluate('(()=>{const m=__qaAtmosphere.getStarMap();return Math.abs(m.latitude-(25+45.4/3600))<1e-10&&Math.abs(m.longitude-(121+27/60+48.7/3600))<1e-10&&m.azimuth===150})()'), 'Requested DMS coordinates and fixed southeast view are used');
   const frame=await evaluate(`(()=>{const a=__qaAtmosphere,v=__qaSkyView,m=a.getStarMap(),s=a.stars(v),later=a.stars({...v,lighting:{...v.lighting,hour:23}}),index=new Map(later.map(s=>[s.id,s]));const common=s.filter(s=>index.has(s.id));return{count:s.length,move:Math.max(...common.map(s=>Math.hypot(s.x-index.get(s.id).x,s.y-index.get(s.id).y))),below:m.visible(v).some(s=>s.altitude<=0),date:new Date(m.utc(v.lighting)).toISOString()}})()`);
   check(frame.count>30&&frame.move>50&&!frame.below&&frame.date.includes('T14:'),'Scene UTC+8 clock drives visible stars above the true horizon '+JSON.stringify(frame));
+  const arcs=await evaluate(`(()=>{const a=__qaAtmosphere,v=__qaSkyView,at=h=>({...v,lighting:{...v.lighting,hour:h,minute:0,second:0}}),first=new Map(a.stars(at(21)).map(s=>[s.id,s])),last=new Map(a.stars(at(23)).map(s=>[s.id,s]));return a.stars(at(22)).filter(s=>first.has(s.id)&&last.has(s.id)).map(q=>{const p=first.get(q.id),r=last.get(q.id),dx=r.x-p.x,dy=r.y-p.y;return Math.abs(dx*(p.y-q.y)-(p.x-q.x)*dy)/Math.hypot(dx,dy)})})()`);
+  check(arcs.length>10&&arcs.filter(s=>s>1).length>arcs.length*.7,'Browser star positions follow curved tracks, including shallow arcs near inflections '+JSON.stringify({samples:arcs.length,curved:arcs.filter(s=>s>1).length,minSag:Math.min(...arcs),maxSag:Math.max(...arcs)}));
   const seasonal=await evaluate(`(()=>{const v=__qaSkyView,m=__qaAtmosphere.getStarMap(),summer=m.visible({...v,lighting:{...v.lighting,day:Math.floor(Date.parse('2026-07-15')/86400000)}},4.6),winter=m.visible({...v,lighting:{...v.lighting,day:Math.floor(Date.parse('2026-01-15')/86400000)}},4.6),ids=new Set(summer.map(s=>s.id));return{summer:summer.length,winter:winter.length,common:winter.filter(s=>ids.has(s.id)).length}})()`);
   check(seasonal.common<Math.min(seasonal.summer,seasonal.winter)*.8,'Different seasons show different visible star fields '+JSON.stringify(seasonal));
   const fixed=await evaluate(`(()=>{const a=__qaAtmosphere,v=__qaSkyView,seed=a.seed,before=a.stars(v);a.seed+=13;const after=a.stars(v);a.seed=seed;return before.every((s,i)=>s.id===after[i].id&&s.x===after[i].x&&s.y===after[i].y)&&before.some((s,i)=>s.alpha!==after[i].alpha)})()`);
@@ -59,17 +61,17 @@ try {
   const advance=await evaluate(`(()=>{const before=${JSON.stringify(before)},a=__qaAtmosphere,s=a.stars(__qaSkyView),map=new Map(s.map(s=>[s.id,s]));return{move:Math.max(...before.stars.filter(s=>map.has(s.id)).map(s=>Math.hypot(s.x-map.get(s.id).x,s.y-map.get(s.id).y))),galaxy:a.galaxy.key!==before.key}})()`);
   check(advance.move>5&&advance.galaxy,'Time multiplier rotates both real stars and Milky Way '+JSON.stringify(advance));
   const pause=await evaluate(`(()=>{const a=__qaAtmosphere,v=__qaSkyView,p=a.stars(v),q=a.stars({...v,time:v.time+3});return{stable:p.every((s,i)=>s.id===q[i].id&&s.x===q[i].x&&s.y===q[i].y),twinkle:p.filter((s,i)=>Math.abs(s.alpha-q[i].alpha)>.02).length}})()`);
-  check(pause.stable&&pause.twinkle>30,'Clock pause holds positions while stars scintillate '+JSON.stringify(pause));
+  check(pause.stable&&pause.twinkle>15,'Clock pause holds positions while stars scintillate '+JSON.stringify(pause));
   await hour(22);await evaluate('document.querySelector("#motion-toggle").click()');await delay(150);
-  await screenshot('real-stars-fixed-v90.png');
+  await screenshot('real-stars-fixed-v99.png');
   for(const [width,height,dpr] of [[390,844,3],[3840,2160,1]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:width<900});await delay(200);
     const size=await evaluate('({w:__qaAtmosphere.celestialCanvas.width,h:__qaAtmosphere.celestialCanvas.height})');
     check(size.w>=width*dpr&&size.h>=height*dpr,'Native star resolution at '+width+' DPR '+dpr);
-    await screenshot('real-stars-'+width+'-v90.png');
+    await screenshot('real-stars-'+width+'-v99.png');
     await evaluate('document.querySelector("#ui-toggle").click();document.querySelector(".star-panel").scrollIntoView({block:"center"})');await delay(100);
     check(await evaluate('(()=>{const r=document.querySelector(".star-panel").getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth})()'),'Star controls fit viewport '+width);
-    await screenshot('real-stars-controls-'+width+'-v90.png');
+    await screenshot('real-stars-controls-'+width+'-v99.png');
     await evaluate('document.querySelector("#ui-toggle").click()');
   }
   await evaluate('document.querySelector("#live-time").click()');

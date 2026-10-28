@@ -5,10 +5,10 @@ const c=vm.createContext({console,Math});for(const file of ['assets/vendor/astro
 const a=new c.IslandAtmosphere(null,null,()=>.43),base={width:1440,height:1000,camera:{x:562.5,y:1004.5,zoom:1,scale:1},baseScale:1,time:20,lighting:{day:20754,hour:12,minute:0,second:0}};
 const noon=day=>({...base,lighting:{...base.lighting,day}}),first=a.weatherProfile(base),days=Array.from({length:14},(_,i)=>a.weatherProfile(noon(20754+i)));
 assert.deepEqual(a.weatherProfile({...base,time:999}),first,'Weather does not flicker with frame time');
-for(const field of ['shiftX','shiftY','humidity','density','fog','sunX','sunY','sunScale','sunshine'])assert(new Set(days.map(p=>p[field].toFixed(4))).size>10,field+' differs between days');
+for(const field of ['shiftX','shiftY','humidity','density','fog','sunX','sunY','sunshine'])assert(new Set(days.map(p=>p[field].toFixed(4))).size>10,field+' differs between days');
 const v1={...base,lighting:{day:20754,hour:23,minute:59,second:59.99}},v2={...base,lighting:{day:20755,hour:0,minute:0,second:0}};
 const p=a.weatherProfile(v1),q=a.weatherProfile(v2);assert(Object.keys(p).every(k=>Math.abs(p[k]-q[k])<.00001),'Continuous weather across midnight');
-const sun=days.map((_,i)=>a.sun({...noon(20754+i),lighting:{...noon(20754+i).lighting,hour:8}}));assert(sun.every(s=>Math.abs(s.x-sun[0].x)<1e-8&&Math.abs(s.y-sun[0].y)<1e-8));assert(Math.max(...sun.map(s=>s.scale))-Math.min(...sun.map(s=>s.scale))>.10);
+const sun=days.map((_,i)=>a.sun({...noon(20754+i),lighting:{...noon(20754+i).lighting,hour:8}}));assert(sun.every(s=>Math.abs(s.x-sun[0].x)<1e-8&&Math.abs(s.y-sun[0].y)<1e-8));assert(Math.max(...sun.map(s=>s.scale))-Math.min(...sun.map(s=>s.scale))>.001);
 const moons=Array.from({length:30},(_,i)=>a.moon({...noon(20754+i),lighting:{day:20754+i,hour:22,minute:0}}));assert(Math.max(...moons.map(m=>m.illumination))>.98&&Math.min(...moons.map(m=>m.illumination))<.02,'Month contains crescent, full and new phases');
 a.applyWeather(noon(20754));const flow1=a.cloudFlow(.2,.3,20),horizon1=a.cloudFlow(.5,.9,20);a.applyWeather(noon(20755));const flow2=a.cloudFlow(.2,.3,20),horizon2=a.cloudFlow(.5,.9,20);assert(Math.abs(flow2.threshold-flow1.threshold)>.001,'Daily weather changes cloud formation');assert(flow1.u===flow2.u&&flow1.v===flow2.v,'Daily weather never introduces drift against the wind');assert(Math.abs(horizon1.v-horizon2.v)<.005,'Cloud horizon remains level');
 console.log('PASS 14 distinct daily profiles, continuous midnight, varying sun, 30-day moon phases and level cloud sea');

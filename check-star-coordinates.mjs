@@ -28,11 +28,46 @@ const angleDiff=(a,b)=>Math.abs(((a-b+540)%360)-180),jd=utc/86400000+2440587.5;
 assert(angleDiff(IslandStarMap.sidereal(jd+1),IslandStarMap.sidereal(jd))>.98,'Same clock hour on the next day shifts by about one degree');
 assert(angleDiff(IslandStarMap.sidereal(jd+86164.09/86400),IslandStarMap.sidereal(jd))<.001,'Stars return after a sidereal day');
 const view={width:1440,height:1000,camera:{x:562.5,y:1004.5},baseScale:1,lighting:{day:Math.floor(Date.parse('2026-10-28')/86400000),hour:22}};
-const f=map.frame(view),left=map.projectHorizontal(map.elevation,map.azimuth-20,f),right=map.projectHorizontal(map.elevation,map.azimuth+20,f);
-assert(f.cx===view.width/2&&Math.abs((left.x+right.x)/2-f.cx)<1e-8&&Math.abs(left.y-right.y)<1e-8,'The camera has a centred, symmetric projection');
-const travel=az=>{const p=map.projectHorizontal(map.elevation,az-.001,f),q=map.projectHorizontal(map.elevation,az+.001,f);return Math.hypot(q.x-p.x,q.y-p.y);};
-assert(Math.abs(travel(map.azimuth-20)-travel(map.azimuth+20))<1e-8,'Equivalent left/right angular movement has the same projection scale');
-console.log('PASS centred optical axis and equal projection scale on both sides');
+const f=map.frame(view),degrees=180/Math.PI;
+const along=angle=>f.forward.map((n,i)=>n*Math.cos(angle*Math.PI/180)+f.right[i]*Math.sin(angle*Math.PI/180));
+const origin=map.project(along(0),f,false);assert(origin&&Math.hypot(origin.x-f.cx,origin.y-f.cy)<1e-8,'Sky camera is centred');
+for(const angle of [-60,-30,0,30,60]){
+  const p=map.project(along(angle-.001),f,false),q=map.project(along(angle+.001),f,false);
+  const gain=Math.hypot(q.x-p.x,q.y-p.y)/(f.focal*.002*Math.PI/180);
+  assert(gain>.85&&gain<1.00001,'Optical projection has bounded foreshortening and never enlarges the edges');
+}
+const pole=map.project(IslandStarMap.vector(0,90),f);
+assert(pole===null,'Celestial rotation pole is outside the local sky view');
+const at=hour=>({...view,lighting:{...view.lighting,hour}}),early=new Map(map.visible(at(21),4.6).map(s=>[s.id,s])),late=new Map(map.visible(at(23),4.6).map(s=>[s.id,s]));
+const previousFrame=v=>({...map.frame(v),focal:Math.max(v.width,v.height)*.9});
+const previousEarly=new Set(map.visible(at(21),4.6,previousFrame(at(21))).map(s=>s.id)),previousLate=new Set(map.visible(at(23),4.6,previousFrame(at(23))).map(s=>s.id));
+const previousMiddle=new Set(map.visible(at(22),4.6,previousFrame(at(22))).map(s=>s.id));
+const curves=map.visible(at(22),4.6).filter(s=>early.has(s.id)&&late.has(s.id)&&previousEarly.has(s.id)&&previousLate.has(s.id)&&previousMiddle.has(s.id)).map(q=>{
+  const p=early.get(q.id),r=late.get(q.id),dx=r.x-p.x,dy=r.y-p.y;
+  const sag=Math.abs(dx*(p.y-q.y)-(p.x-q.x)*dy)/Math.hypot(dx,dy);
+  const cross=2*((q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x));
+  const ux=((q.x-p.x)**2+(q.y-p.y)**2)*(r.y-p.y)-((r.x-p.x)**2+(r.y-p.y)**2)*(q.y-p.y);
+  const uy=(q.x-p.x)*((r.x-p.x)**2+(r.y-p.y)**2)-(r.x-p.x)*((q.x-p.x)**2+(q.y-p.y)**2);
+  const x=p.x+ux/cross,y=p.y+uy/cross;
+  return {sag,radius:Math.hypot(q.x-x,q.y-y),outside:x<0||x>view.width||y<0||y>view.height};
+});
+assert(curves.length>10&&curves.every(p=>p.sag>1&&p.radius>f.focal*2&&p.outside),'Real stars follow broad curved tracks whose local centres lie outside the frame');
+console.log('PASS broad stellar arcs, offscreen turning centres and bounded edge scale',JSON.stringify({samples:curves.length,minRadius:Math.min(...curves.map(p=>p.radius)),sag:[Math.min(...curves.map(p=>p.sag)),Math.max(...curves.map(p=>p.sag))]}));
+for(const [width,height] of [[1440,1000],[390,844],[3840,2160]]){
+  const wideView={...view,width,height},wide=map.frame(wideView),narrow={...wide,focal:Math.max(width,height)*.455};
+  const oldStars=map.visible(wideView,4.6,narrow),newStars=map.visible(wideView,4.6,wide);
+  const allStars=map.visible(wideView).filter(s=>s.x>=0&&s.x<=width&&s.y>=height*.2&&s.y<=height*.5);
+  assert(allStars.filter(s=>s.x<width*.03).length>2&&allStars.filter(s=>s.x>width*.97).length>2,'Real stars reach both outer sky edges without an inset globe boundary');
+  const figures=frame=>map.constellations.filter(c=>{const points=c.paths.flat();return points.length&&points.filter(p=>map.project(p,frame)).length>=points.length*.75;}).length;
+  assert(newStars.length>oldStars.length,'Wider view reveals more catalogue stars');
+  assert(figures(wide)>=figures(narrow)+3,'Wider view reveals more mostly complete constellation figures');
+  assert(wide.focal/narrow.focal<.73,'Constellation geometry is at least 27 percent smaller than V98');
+  const reference=oldStars.slice(0,10).map(s=>({star:s.v,old:map.project(s.v,narrow,false)}));
+  for(const {star,old} of reference){const p=map.project(star,wide,false),ratio=wide.focal/narrow.focal;
+    assert(Math.abs(p.x-wide.cx-(old.x-narrow.cx)*ratio)<1e-8&&Math.abs(p.y-wide.cy-(old.y-narrow.cy)*ratio)<1e-8,'Zoom preserves spherical geometry and relative placement');
+  }
+  console.log('PASS wider field and smaller constellation figures',JSON.stringify({width,height,oldStars:oldStars.length,newStars:newStars.length,oldFigures:figures(narrow),newFigures:figures(wide),scale:wide.focal/narrow.focal}));
+}
 const normal=map.visible(view),tomorrow=map.visible({...view,lighting:{...view.lighting,day:view.lighting.day+1}}),byId=new Map(tomorrow.map(s=>[s.id,s]));
 assert(normal.length>1000&&normal.every(s=>s.altitude>0),'Only above-horizon stars are projected');
 assert(normal.some(s=>byId.has(s.id)&&Math.hypot(s.x-byId.get(s.id).x,s.y-byId.get(s.id).y)>2),'Each night changes the view continuously');

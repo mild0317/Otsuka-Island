@@ -17,7 +17,7 @@
   class IslandStarMap {
     constructor(catalog=globalThis.ISLAND_STAR_CATALOG){
       this.latitude=25+45.4/3600;this.longitude=121+27/60+48.7/3600;
-      this.azimuth=150;this.elevation=55;this.showLines=false;
+      this.azimuth=150;this.elevation=45;this.showLines=false;
       this.catalog=catalog;
       this.stars=(catalog?.stars||[]).map(([id,ra,dec,mag,bv,name])=>({id,ra,dec,mag,bv,name,v:vector(ra,dec)}));
       this.constellations=(catalog?.constellations||[]).map(c=>({...c,v:vector(...c.at),paths:c.lines.map(path=>path.map(p=>vector(...p)))}));
@@ -40,31 +40,31 @@
       const columns=[[1,0,0],[0,1,0],[0,0,1]].map(v=>precess(v,jd));
       const e=[-Math.sin(lst),Math.cos(lst),0],n=[-Math.sin(lat)*Math.cos(lst),-Math.sin(lat)*Math.sin(lst),Math.cos(lat)],u=[Math.cos(lat)*Math.cos(lst),Math.cos(lat)*Math.sin(lst),Math.sin(lat)];
       const east=columns.map(c=>dot(e,c)),north=columns.map(c=>dot(n,c)),up=columns.map(c=>dot(u,c));
-      // A fixed southeast/upward window includes the solar/lunar transit region.
-      // A centred perspective crop keeps the left/right projection scale symmetric.
-      // The celestial pole remains behind the view, outside the picture.
+      // Unwrap local sky angles into a rectangular window. Reducing the angular
+      // scale reveals more sky without exposing the rim of an orthographic globe.
       const az=this.azimuth*D,el=this.elevation*D,heading=mix(east,north,Math.sin(az),Math.cos(az));
-      const focal=Math.min(view.width,view.height)*.5,cy=view.height*.5;
-      const horizon=cy+focal*Math.tan(el);
-      return {utc,jd,lst:lst/D,east,north,up,right:mix(east,north,Math.cos(az),-Math.sin(az)),
-        forward:mix(heading,up,Math.cos(el),Math.sin(el)),top:mix(heading,up,-Math.sin(el),Math.cos(el)),
-        focal,azimuth:this.azimuth,elevation:this.elevation,horizon,cx:view.width*.5-(view.camera.x-562.5)*view.baseScale*.006,
+      const forward=mix(heading,up,Math.cos(el),Math.sin(el)),cy=view.height*.5;
+      // Keep the +/-90-degree limits beyond the longest viewport edges.
+      const focal=Math.max(view.width,view.height)*.33;
+      return {utc,jd,lst:lst/D,east,north,up,forward,
+        right:mix(east,north,Math.cos(az),-Math.sin(az)),top:mix(heading,up,-Math.sin(el),Math.cos(el)),
+        centerRA:Math.atan2(forward[1],forward[0]),centerDec:Math.asin(forward[2]),
+        focal,azimuth:this.azimuth,elevation:this.elevation,horizon:view.skyHorizon??view.height*.72,cx:view.width*.5-(view.camera.x-562.5)*view.baseScale*.006,
         cy,width:view.width,height:view.height};
     }
     project(v,frame,clip=true){
-      const altitude=dot(v,frame.up),forward=dot(v,frame.forward);
-      if(altitude<=0||forward<=.05)return null;
-      const k=frame.focal/forward,x=frame.cx+dot(v,frame.right)*k,y=frame.cy-dot(v,frame.top)*k;
+      const altitude=dot(v,frame.up);
+      if(altitude<=0||dot(v,frame.forward)<=0)return null;
+      const right=dot(v,frame.right),top=dot(v,frame.top),forward=dot(v,frame.forward);
+      const x=frame.cx+Math.atan2(right,forward)*frame.focal;
+      const y=frame.cy-Math.atan2(top,Math.hypot(right,forward))*frame.focal;
       if(clip&&(x<-40||x>frame.width+40||y<-40||y>frame.height+40))return null;
       return {x,y,altitude:Math.asin(Math.max(-1,Math.min(1,altitude)))/D};
     }
     projectHorizontal(altitude,azimuth,frame){
-      const a=altitude*D,b=(azimuth-frame.azimuth)*D,el=frame.elevation*D;
-      const horizontal=Math.cos(a)*Math.cos(b),vertical=Math.sin(a);
-      const forward=horizontal*Math.cos(el)+vertical*Math.sin(el);
-      if(forward<=.05)return null;
-      return {x:frame.cx+frame.focal*Math.cos(a)*Math.sin(b)/forward,
-        y:frame.cy-frame.focal*(-horizontal*Math.sin(el)+vertical*Math.cos(el))/forward};
+      const a=altitude*D,b=azimuth*D,east=Math.cos(a)*Math.sin(b),north=Math.cos(a)*Math.cos(b),up=Math.sin(a);
+      const v=frame.east.map((n,i)=>n*east+frame.north[i]*north+frame.up[i]*up);
+      return this.project(v,frame,false);
     }
     body(name,view){
       const utc=this.utc(view.lighting),frame=this.frame(view);
@@ -92,9 +92,9 @@
     visible(view,limit=8,frame=this.frame(view)){
       const result=[];for(const star of this.stars){if(star.mag>limit)continue;const p=this.project(star.v,frame);if(p)result.push({...star,...p});}return result;
     }
-    drawConstellations(g,view){
+    drawConstellations(g,view,opacity=1){
       if(!this.showLines)return;
-      const f=this.frame(view),labels=[];g.save();g.lineWidth=.75;g.strokeStyle='#bfdcff55';g.beginPath();
+      const f=this.frame(view),labels=[];g.save();g.globalAlpha*=opacity;g.lineWidth=.55;g.strokeStyle='#bfdcff40';g.beginPath();
       for(const c of this.constellations){
         for(const path of c.paths){
           // Subdivide the spherical arcs; never join across the horizon or back hemisphere.
@@ -108,10 +108,10 @@
         }
         const p=this.project(c.v,f);if(p&&p.y>28&&p.y<view.height*.8)labels.push({...p,name:c.name});
       }
-      g.stroke();g.font='12px system-ui';g.textAlign='center';g.fillStyle='#dce9ffb8';g.shadowColor='#000';g.shadowBlur=5;
+      g.stroke();g.font='11px system-ui';g.textAlign='center';g.fillStyle='#dce9ff99';g.shadowColor='#000';g.shadowBlur=5;
       const occupied=[];for(const p of labels){const w=g.measureText(p.name).width;if(p.x<w/2+8||p.x>view.width-w/2-8||p.y<60||occupied.some(q=>Math.abs(q.x-p.x)<(q.w+w)/2+12&&Math.abs(q.y-p.y)<22))continue;g.fillText(p.name,p.x,p.y);occupied.push({...p,w});}
       const names={11767:'北極星',32349:'天狼星',91262:'織女星',97649:'牛郎星',102098:'天津四',27989:'參宿四',24436:'參宿七',24608:'五車二',21421:'畢宿五',37279:'南河三',37826:'北河三',36850:'北河二',69673:'大角星',65474:'角宿一',80763:'心宿二',113368:'北落師門'};
-      g.font='10px system-ui';g.textAlign='left';g.fillStyle='#fff0c4';
+      g.font='9px system-ui';g.textAlign='left';g.fillStyle='#fff0c4';
       for(const s of this.visible(view,1.5,f)){const name=names[s.id]||s.name;if(name)g.fillText(name,s.x+8,s.y-7);}
       // Polaris is useful even though it is fainter than the bright-star label limit.
       const polaris=this.stars.find(s=>s.id===11767),p=polaris&&this.project(polaris.v,f);if(p)g.fillText('北極星',p.x+8,p.y-7);

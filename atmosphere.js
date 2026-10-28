@@ -6,6 +6,7 @@
   const makeCanvas=()=>typeof document==='undefined'?new OffscreenCanvas(1,1):document.createElement('canvas');
   const hash=(x,y,seed)=>{let n=Math.imul(x,374761393)+Math.imul(y,668265263)+Math.imul(seed,1442695041);n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;};
   const valueNoise=(x,y,seed)=>{const ix=Math.floor(x),iy=Math.floor(y),fx=smooth(x-ix),fy=smooth(y-iy);return (hash(ix,iy,seed)*(1-fx)+hash(ix+1,iy,seed)*fx)*(1-fy)+(hash(ix,iy+1,seed)*(1-fx)+hash(ix+1,iy+1,seed)*fx)*fy;};
+  const evolvingNoise=(x,y,t,seed)=>{const time=t+hash(13,29,seed)*19,epoch=Math.floor(time),f=smooth(time-epoch),a=valueNoise(x,y,seed+epoch*1013),b=valueNoise(x,y,seed+(epoch+1)*1013);return a+(b-a)*f;};
   const nebulaNoise=(x,y,seed)=>valueNoise(x,y,seed)*.53+valueNoise(x*2.03,y*2.03,seed+1)*.27+valueNoise(x*4.13,y*4.13,seed+2)*.13+valueNoise(x*8.21,y*8.21,seed+3)*.07;
   const workerURL=typeof document==='undefined'?null:document.currentScript?.src;
   class IslandAtmosphere {
@@ -54,8 +55,8 @@
       const stamp=(l.day??0)+hour/24,day=Math.floor(stamp),f=smooth(stamp-day),seed=Math.floor(this.seed*1000);
       const sample=d=>({shiftX:(hash(d,1,seed)-.5)*.44,shiftY:(hash(d,2,seed)-.5)*.12,
         humidity:(hash(d,3,seed)-.5)*.12,density:.65+hash(d,4,seed)*.7,fog:.35+hash(d,5,seed)*.6,
-        sunX:(hash(d,6,seed)-.5)*.07,sunY:(hash(d,7,seed)-.5)*.04,sunScale:.85+hash(d,8,seed)*.3,
-        sunshine:.76+hash(d,9,seed)*.24,moonX:(hash(d,10,seed)-.5)*.04,moonScale:.90+hash(d,11,seed)*.16});
+        sunX:(hash(d,6,seed)-.5)*.07,sunY:(hash(d,7,seed)-.5)*.04,
+        sunshine:.76+hash(d,9,seed)*.24,moonX:(hash(d,10,seed)-.5)*.04});
       const a=sample(day),b=sample(day+1);return Object.fromEntries(Object.keys(a).map(key=>[key,a[key]+(b[key]-a[key])*f]));
     }
     applyWeather(view){this.dailyWeather=this.weatherProfile(view);this.weatherKey=Object.values(this.dailyWeather).map(v=>v.toFixed(3)).join(':');}
@@ -109,7 +110,7 @@
       edge.drawImage(canvas,0,0,1,512,0,16,16,512);edge.drawImage(canvas,1023,0,1,512,1040,16,16,512);
       edge.drawImage(padded,0,16,1056,1,0,0,1056,16);edge.drawImage(padded,0,527,1056,1,0,528,1056,16);
       const soft=document.createElement('canvas');soft.width=1024;soft.height=512;
-      const p=soft.getContext('2d',{willReadFrequently:true});p.filter='blur(1.5px)';p.drawImage(padded,-16,-16);
+      const p=soft.getContext('2d',{willReadFrequently:true});p.filter='blur(5px)';p.drawImage(padded,-16,-16);
       this.cloudSoft=p.getImageData(0,0,1024,512).data;
       this.cloudFrames={};return true;
     }
@@ -124,14 +125,17 @@
       // aspect so diagonal winds retain their screen angle on every layer.
       const x=u-this.windOffset.x*speed,y=v-this.windOffset.y*2*speed,t=time*(near?1.7:1);
       const eddy=Math.sin(x*10+y*7+phase),curl=Math.cos(x*6-y*12+phase*.7);
-      const moisture=Math.sin(x*13+y*9-t*.037+phase+(weather.shiftX||0)*5)+.48*Math.sin(x*27-y*17+t*.052+phase*.31+(weather.shiftY||0)*7);
+      const seed=Math.floor(this.seed*1000)+(near?7919:0),upper=1-sea*.9;
+      // Smooth, non-repeating 3-D fields evolve individual cloud parcels. They
+      // deform the edges locally; accumulated wind remains the only bulk drift.
+      const growth=evolvingNoise(x*4.2,y*8.4,t/24,seed+11),detail=evolvingNoise(x*9,y*18,t/17,seed+29);
+      const swellX=evolvingNoise(x*5.3,y*10.6,t/27,seed+41)-.5;
+      const swellY=evolvingNoise(x*5.7+7,y*11.4,t/23,seed+67)-.5;
       return {
-        // Static spatial warp travels with each wind parcel. Shape changes use
-        // condensation/diffusion, never an unrelated translation or oscillation.
-        u:x+.006*eddy+.003*curl,
-        v:y+.0035*Math.cos(x*9+y*5+phase)+.0015*Math.sin(x*17+phase),
-        threshold:(.047*moisture+.035*Math.sin(x*5+y*11+t*.014+phase))*(1-sea*.7)+(weather.humidity||0)*(1-sea),
-        diffusion:.5+.5*Math.sin(x*8-y*5-t*.029+phase*.4),sea
+        u:x+.006*eddy+.003*curl+.024*swellX*upper,
+        v:y+.0035*Math.cos(x*9+y*5+phase)+.0015*Math.sin(x*17+phase)+.012*swellY*upper,
+        threshold:(.32*(growth-.5)+.18*(detail-.5))*(1-sea*.85)+(weather.humidity||0)*(1-sea),
+        diffusion:evolvingNoise(x*6+3,y*12,t/21,seed+83),sea
       };
     }
     cloudFrame(time,near=false){
@@ -184,9 +188,11 @@
           }
           // Diffusion broadens the edges. Local humidity condenses adjoining wisps
           // or evaporates them, changing their silhouette rather than scaling a sprite.
-          const density=alpha+(spread-alpha)*diffusion*.32;
-          const evolved=clamp(density+humidity*smooth(density*10)*(1-density));
-          const final=Math.pow(evolved,1.08-humidity*3.4);
+          const density=alpha+(spread-alpha)*(.08+diffusion*.16);
+          const expansion=clamp(humidity*5),erosion=clamp(-humidity*5);
+          const expanded=1-Math.pow(1-spread,3.2),eroded=clamp((density-erosion*.55)/(1-erosion*.25));
+          const evolved=humidity>=0?density+Math.max(0,expanded-density)*expansion:eroded;
+          const final=Math.pow(clamp(evolved),1.04-humidity*1.2);
           for(let ch=0;ch<3;ch++)out[j+ch]=source[i+ch]*sa+source[i+4+ch]*sb+source[i+4096+ch]*sc+source[i+4100+ch]*sd;
           const dailyDensity=1+((this.dailyWeather?.density??1)-1)*(1-sea);
           const seaFloor=smooth((y/(height-1)-.74)/.13)*.97*(1-skyWeight);
@@ -255,15 +261,24 @@
       const continuous=riseHour===18&&hour<12?hour+24:hour,progress=(continuous-riseHour)/12;
       const horizon=this.sea(view).horizon,elevation=4*progress*(1-progress),height=horizon-view.height*.12;
       // A fixed left-to-right scene path. It is independent of the astronomical camera.
-      // Slightly bias the high point rightwards so the clock tower does not hide it.
-      return {x:view.width*(progress+.16*Math.sin(Math.PI*progress)),y:horizon-height*elevation,horizon,elevation,progress};
+      return {x:view.width*progress,y:horizon-height*elevation,horizon,elevation,progress};
+    }
+    orbitalAppearance(view){
+      // Geocentric distance controls apparent size; the illustrated trajectories
+      // remain independent of the real sky directions, as requested.
+      const utc=this.getStarMap().utc(view.lighting);
+      if(this.orbitalCache?.utc===utc)return this.orbitalCache;
+      const date=new Date(utc),sun=Astronomy.GeoVector('Sun',date,true),moon=Astronomy.GeoVector('Moon',date,true);
+      const sunDistanceAU=Math.hypot(sun.x,sun.y,sun.z),moonDistanceAU=Math.hypot(moon.x,moon.y,moon.z);
+      return this.orbitalCache={utc,sunDistanceAU,moonDistanceAU,sunScale:1/sunDistanceAU,moonScale:(384400/149597870.7)/moonDistanceAU};
     }
     sun(view){
       const daily=this.weatherProfile(view),position=this.horizonTrack(view,6);
+      const optics=this.orbitalAppearance(view);
       const daylight=smooth((position.progress+1/24)*24)*smooth((1+1/24-position.progress)*24);
       const weather=.72+.18*Math.sin(view.time/130+this.seed)+.10*Math.sin(view.time/57+this.seed*2);
-      return {...position,radius:Math.max(14,Math.min(36,Math.min(view.width,view.height)*.04*daily.sunScale)),
-        scale:daily.sunScale,alpha:daylight*(.88+.12*weather)*(.95+.05*daily.sunshine),
+      return {...position,radius:Math.max(14,Math.min(36,Math.min(view.width,view.height)*.04))*optics.sunScale,
+        scale:optics.sunScale,distanceAU:optics.sunDistanceAU,alpha:daylight*(.88+.12*weather)*(.95+.05*daily.sunshine),
         warmth:smooth((.30-position.elevation)/.30),rayAngle:.85+Math.sin(view.time/170+this.seed)*.09,rayStrength:daylight*weather};
     }
     static lightAt(hour){
@@ -363,10 +378,10 @@
       g.globalAlpha=1;this.galaxy={key,seed,canvas,points:bins.reduce((n,b)=>n+b.length,0),ratio,margin};return canvas;
     }
     moon(view){
-      const daily=this.weatherProfile(view),position=this.horizonTrack(view,18);
+      const position=this.horizonTrack(view,18),optics=this.orbitalAppearance(view);
       const phase=Astronomy.MoonPhase(new Date(this.getStarMap().utc(view.lighting)))/360,illumination=(1-Math.cos(phase*Math.PI*2))/2;
-      return {...position,radius:Math.max(10,Math.min(23,Math.min(view.width,view.height)*.023*daily.moonScale)),
-        alpha:this.night(view),phase,illumination};
+      return {...position,radius:Math.max(10,Math.min(23,Math.min(view.width,view.height)*.023))*optics.moonScale,
+        scale:optics.moonScale,distanceAU:optics.moonDistanceAU,alpha:this.night(view),phase,illumination};
     }
     moonTexture(phase=.5){
       const key=Math.round(phase*90);this.lunarSurfaces ||= new Map();if(this.lunarSurfaces.has(key))return this.lunarSurfaces.get(key);
@@ -420,7 +435,7 @@
 
         const far=this.galaxyTexture(view,scale),margin=this.galaxy.margin;
         p.drawImage(far,-margin,-margin,view.width+margin*2,view.height+margin*2);p.restore();
-        this.drawStars(p,view,false);this.getStarMap().drawConstellations(p,view);this.drawMoon(p,view);this.drawMeteors(p,view);
+        this.drawStars(p,view,false);this.getStarMap().drawConstellations(p,view,strength**1.7);this.drawMoon(p,view);this.drawMeteors(p,view);
         if(frame){const layer=this.sea(view);p.save();p.globalCompositeOperation='destination-out';p.globalAlpha=.97;p.drawImage(frame.canvas,layer.x,layer.y,layer.w,layer.h);p.restore();}
         this.celestialKey=key;
         this.celestialCloudCanvas=frame?.canvas;this.celestialCloudReader=this.visualCloudFrame;
