@@ -1,0 +1,159 @@
+{
+  "source": "https://aa.usno.navy.mil/api/celnav?date=2026-10-28&time=14:00:00&coords=25.012611111,121.463527778",
+  "utc": "2026-10-28T14:00:00Z",
+  "latitude": 25.01261111111111,
+  "longitude": 121.46352777777778,
+  "notes": "Geocentric altitude hc and azimuth zn, before atmospheric refraction. Retrieved 2026-10-28.",
+  "stars": [
+    {
+      "name": "Alpheratz",
+      "hip": 677,
+      "altitude": 83.228326,
+      "azimuth": 309.968344
+    },
+    {
+      "name": "Ankaa",
+      "hip": 2081,
+      "altitude": 22.813625,
+      "azimuth": 181.193599
+    },
+    {
+      "name": "Diphda",
+      "hip": 3419,
+      "altitude": 47.060279,
+      "azimuth": 176.02182
+    },
+    {
+      "name": "ACHERNAR",
+      "hip": 7588,
+      "altitude": 6.745382,
+      "azimuth": 171.171502
+    },
+    {
+      "name": "Hamal",
+      "hip": 9884,
+      "altitude": 68.303897,
+      "azimuth": 88.742287
+    },
+    {
+      "name": "Acamar",
+      "hip": 13847,
+      "altitude": 16.501562,
+      "azimuth": 151.761728
+    },
+    {
+      "name": "Menkar",
+      "hip": 14135,
+      "altitude": 48.387164,
+      "azimuth": 113.807326
+    },
+    {
+      "name": "Mirfak",
+      "hip": 15863,
+      "altitude": 48.491764,
+      "azimuth": 41.625884
+    },
+    {
+      "name": "ALDEBARAN",
+      "hip": 21421,
+      "altitude": 32.81675,
+      "azimuth": 85.78753
+    },
+    {
+      "name": "RIGEL",
+      "hip": 24436,
+      "altitude": 13.789801,
+      "azimuth": 106.018483
+    },
+    {
+      "name": "CAPELLA",
+      "hip": 24608,
+      "altitude": 30.411244,
+      "azimuth": 49.690188
+    },
+    {
+      "name": "Bellatrix",
+      "hip": 25336,
+      "altitude": 17.845595,
+      "azimuth": 91.230939
+    },
+    {
+      "name": "Elnath",
+      "hip": 25428,
+      "altitude": 25.28072,
+      "azimuth": 68.630763
+    },
+    {
+      "name": "Alnilam",
+      "hip": 26311,
+      "altitude": 12.14545,
+      "azimuth": 97.106363
+    },
+    {
+      "name": "BETELGEUSE",
+      "hip": 27989,
+      "altitude": 11.463968,
+      "azimuth": 87.096389
+    },
+    {
+      "name": "Kochab",
+      "hip": 72607,
+      "altitude": 11.573726,
+      "azimuth": 350.912857
+    },
+    {
+      "name": "Eltanin",
+      "hip": 87833,
+      "altitude": 13.985642,
+      "azimuth": 320.682027
+    },
+    {
+      "name": "VEGA",
+      "hip": 91262,
+      "altitude": 16.148225,
+      "azimuth": 305.799685
+    },
+    {
+      "name": "ALTAIR",
+      "hip": 97649,
+      "altitude": 21.495641,
+      "azimuth": 270.034214
+    },
+    {
+      "name": "DENEB",
+      "hip": 102098,
+      "altitude": 39.796462,
+      "azimuth": 309.31771
+    },
+    {
+      "name": "Enif",
+      "hip": 107315,
+      "altitude": 47.432054,
+      "azimuth": 257.016936
+    },
+    {
+      "name": "Alnair",
+      "hip": 109268,
+      "altitude": 11.171898,
+      "azimuth": 204.142461
+    },
+    {
+      "name": "FOMALHAUT",
+      "hip": 113368,
+      "altitude": 30.9836,
+      "azimuth": 203.993417
+    },
+    {
+      "name": "Markab",
+      "hip": 113963,
+      "altitude": 67.361925,
+      "azimuth": 248.917461
+    },
+    {
+      "name": "POLARIS",
+      "hip": 11767,
+      "altitude": 25.498124,
+      "azimuth": 0.43347
+    }
+  ]
+}

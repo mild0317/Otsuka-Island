@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const rooms = Object.fromEntries(Object.entries(window.IslandRoomTopics).map(([key,room])=>[key,{...room,stations:[[room.title,room.lead]]}]));
+  const rooms = Object.fromEntries(Object.entries(window.IslandRoomTopics).map(([key,room])=>[key,{...room,stations:room.pptLinks?.map(link=>[link.title,room.lead])||[[room.title,room.lead]]}]));
 
   function topicDiagram(key){
     const board='<rect x="28" y="40" width="300" height="180" rx="15" fill="#214d47" stroke="#77a993" stroke-width="2"/><g fill="none" stroke="#a8c88c" stroke-width="3"><path d="M55 75H117L142 100V170H218L243 195H301M55 190H94V148L128 114H265V72H302M55 111H85L110 86H196L220 110V151H302"/><path d="M71 58V97M288 170V206M177 58V82"/></g><g fill="#d2b777">'+[[55,75],[55,111],[55,190],[71,58],[177,58],[302,72],[302,151],[288,206]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6"/>`).join('')+'</g><rect x="142" y="107" width="70" height="49" rx="5" fill="#122d2d" stroke="#b0bdb0"/><text x="177" y="137" text-anchor="middle" fill="#d9e6ce" font-size="13">PCB</text>';
@@ -18,6 +18,7 @@
       this.onOpen=onOpen;this.onSound=onSound;this.onSoundToggle=onSoundToggle;
       this.onClose = onClose; this.key = null; this.timer = null; this.run = 'idle'; this.step = 0; this.activeStation = null;
       this.world=null;this.renderCharacter=null;this.motion=true;this.cat=null;
+      this.pptManifest={};this.catalogRequest=0;
       const dialog = document.createElement('dialog');
       dialog.id = 'room-dialog'; dialog.className = 'room-dialog'; dialog.setAttribute('aria-labelledby', 'room-title');
       dialog.innerHTML = `
@@ -87,6 +88,29 @@
       this.$('#room-art').addEventListener('error', () => this.imageStatus('房間圖片未載入，請重新整理後再試。'));
     }
     $(selector) { return this.dialog.querySelector(selector); }
+    stationInfo(key,index){
+      const room=rooms[key],link=room.pptLinks?.[index],deck=this.pptManifest[link?.pptKey];
+      const source=typeof deck?.source==='string'?deck.source:link?.source||'';
+      return{source,title:IslandPPTViewer.titleFromSource(source,link?.title||room.stations[index][0])};
+    }
+    updatePPTLabels(key){
+      if(this.key!==key)return;
+      rooms[key].stations.forEach((_,index)=>{
+        const {title,source}=this.stationInfo(key,index),group=this.$('.room-object[data-station="'+index+'"]');
+        this.$('.room-stations [data-station="'+index+'"]').textContent=title;
+        group.setAttribute('aria-label','探索'+title);group.dataset.pptSource=source;
+        const tooltip=group.querySelector('title');if(tooltip)tooltip.textContent=title+'｜'+source;
+      });
+      if(this.activeStation!==null)this.$('.room-detail h3').textContent=rooms[key].name+'｜'+this.stationInfo(key,this.activeStation).title;
+    }
+    async refreshPPTLabels(key){
+      const request=++this.catalogRequest;
+      try{
+        const response=await fetch('PPT/manifest.json',{cache:'no-cache'});if(!response.ok)return;
+        const manifest=await response.json();if(!manifest||typeof manifest!=='object'||Array.isArray(manifest)||request!==this.catalogRequest||this.key!==key)return;
+        this.pptManifest=manifest;this.updatePPTLabels(key);
+      }catch{/* Existing fallback labels remain available until the catalog loads. */}
+    }
     renderTopic(){
       const room=rooms[this.key];
       this.$('.topic-challenge').textContent=room.challenge;this.$('.topic-value').textContent=room.value;
@@ -117,17 +141,19 @@
     setNPCLife(service){this.npcLife=service;}
     resizeScene(){if(!this.key)return;const stage=this.$('.room-stage'),scene=this.$('.room-scene'),w=Math.min(stage.clientWidth,stage.clientHeight*1.5);scene.style.width=w+'px';scene.style.height=(w/1.5)+'px';this.world?.draw();}
     update(dt,time){if(time)this.$('.room-scene').style.setProperty('--room-dusk',String(time.dusk||0));if(time&&this.key==='clock'){const {hour,minute,second}=time,svg=this.$('.room-clock');svg.dataset.time=[hour,minute,Math.floor(second)].map(v=>String(v).padStart(2,'0')).join(':');svg.setAttribute('aria-label','房內時鐘 '+svg.dataset.time);this.$('.room-clock-hour').setAttribute('transform',`rotate(${(hour%12+minute/60+second/3600)*30})`);this.$('.room-clock-minute').setAttribute('transform',`rotate(${(minute+second/60)*6})`);this.$('.room-clock-second').setAttribute('transform',`rotate(${second*6})`);}this.world?.update(dt,this.motion);}
-    updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation!==null||pending===Number(b.dataset.station))));}
+    updateSelection(){const pending=this.world?.pendingStation;this.dialog.querySelectorAll('[data-station]').forEach(b=>b.setAttribute('aria-pressed',String(this.activeStation===Number(b.dataset.station)||pending===Number(b.dataset.station))));}
     open(key) {
       const room = rooms[key]; if (!room || this.key) return;
       this.key = key; this.dialog.dataset.theme = room.theme;
       this.npcLife?.load(key);
-      this.world=new IslandRoomWorld.RoomWorld({key,canvas:this.$('.room-world'),art:this.$('#room-art'),renderCharacter:this.renderCharacter,cat:this.cat,coworkerImages:this.coworkerImages,npcLife:this.npcLife,onArrive:index=>this.showTopic(index)});
+      this.npcLife?.enter(key);
+      this.world=new IslandRoomWorld.RoomWorld({key,stations:room.pptLinks,canvas:this.$('.room-world'),art:this.$('#room-art'),renderCharacter:this.renderCharacter,cat:this.cat,coworkerImages:this.coworkerImages,npcLife:this.npcLife,onArrive:index=>this.showTopic(index)});
       this.$('#room-en').textContent = room.en; this.$('#room-title').textContent = room.name;
       this.renderTopic();
       this.$('.room-stations').replaceChildren(); this.$('.room-objects').replaceChildren();
       this.$('.room-clock').toggleAttribute('hidden',key!=='clock');
-      room.stations.forEach(([name], i) => {
+      room.stations.forEach((station, i) => {
+        const {title:name,source}=this.stationInfo(key,i);
         const button = document.createElement('button'); button.type = 'button'; button.dataset.station = i;
         button.textContent = name; button.setAttribute('aria-pressed', 'false');
         button.addEventListener('click', () => this.selectStation(i)); this.$('.room-stations').append(button);
@@ -135,9 +161,11 @@
         group.classList.add('room-object'); group.dataset.station = i;
         group.setAttribute('role', 'button'); group.setAttribute('tabindex', '0');
         group.setAttribute('aria-label', `探索${name}`); group.setAttribute('aria-pressed', 'false');
+        const link=room.pptLinks?.[i];
+        if(link){group.dataset.pptSource=source;const title=document.createElementNS('http://www.w3.org/2000/svg','title');title.textContent=name+'｜'+source;group.append(title);}
         for (const layer of ['hit', 'halo', 'mist', 'core']) {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-          path.setAttribute('d', IslandOutlines.rooms[key][this.world.layout.equipment.outline]); path.setAttribute('class', `object-${layer}`);
+          path.setAttribute('d', IslandOutlines.rooms[key][link?.outline??this.world.layout.equipment.outline]); path.setAttribute('class', `object-${layer}`);
           path.setAttribute('vector-effect', 'non-scaling-stroke'); group.append(path);
         }
         group.addEventListener('click', () => this.selectStation(i));
@@ -159,6 +187,7 @@
       this.resizeScene();
       this.onOpen?.(key);
       this.$('.room-close').focus({ preventScroll: true });
+      this.refreshPPTLabels(key);
     }
     resetDemo() {
       if(this.run==='running')this.onSound?.('cancel',this.key);
@@ -189,7 +218,10 @@
       const station = rooms[this.key]?.stations[index];if(!station)return;
       this.resetDemo(); this.activeStation = index; this.$('.room-content').hidden = false;
       this.$('.room-topic-list').open = false;
-      this.$('.room-detail h3').textContent = rooms[this.key].name; this.$('.room-detail p').textContent = '';this.ppt.open(this.key);
+      const link=rooms[this.key].pptLinks?.[index];
+      const key=this.key,pptKey=link?.pptKey||key;
+      this.$('.room-detail h3').textContent = rooms[key].name+(link?'｜'+this.stationInfo(key,index).title:'');this.$('.room-detail p').textContent = '';
+      this.ppt.open(pptKey).then(deck=>{if(deck&&this.key===key&&this.activeStation===index){this.pptManifest[pptKey]=deck;this.updatePPTLabels(key);}});
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
       this.$('.room-topic-dialog').showModal();this.$('.room-content').scrollTop=0;
       this.$('.room-detail h3').focus({ preventScroll: true });

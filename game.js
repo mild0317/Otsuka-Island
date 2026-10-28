@@ -28,16 +28,15 @@
   // This is an animated game by explicit request. OS preferences must not silently
   // disable its core behavior; the visible control lets the visitor pause it.
   let motionEnabled = true, animationTime = 0;
-  const island = new Image(), islandMask = new Image(), sprites = new Image(), cloud = new Image(), edaArt = new Image(), birdSheet = new Image(), validationArt = new Image(), designArt = new Image();
-  const reorderedArt=new Image(),workshopArt=new Image(),distantIslands=new Image(),skyPlate=new Image(),sunSky=new Image();
-  const detailImages = Object.fromEntries(['design','workshop','verification','simulation','terrace'].map(key => [key, new Image()]));
+  const island = new Image(), sprites = new Image(), cloud = new Image(), birdSheet = new Image();
+  const distantIslands=new Image(),skyPlate=new Image(),sunSky=new Image();
   const catImage=new Image(),catActions=new Image();let islandCat,npcLife;
   const coworkerImages=Object.fromEntries(['princess','anthony','hank'].map(key=>[key,new Image()]));
   let life,atmosphere;
   const islandView = { x: 562.5, y: 1004.5, width: 1085, height: 1879 };
   const camera = { x: islandView.x, y: islandView.y, zoom: 1, scale: 1, follow: false };
-  const actor = { x: 625, y: 1540, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0, speech: '', speechUntil: 0 };
-  let width = 0, height = 0, baseScale = 1, ready = false, clock = 0, lastTime = 0;
+  const actor = { x: 500, y: 922, route: [], phase: 0, gait: 0, facing: 0, heading: 0, wave: 0, nextWave: 4, idle: 0, destination: '', turn: 0, speech: '', speechUntil: 0 };
+  let width = 0, height = 0, baseScale = 1, ready = false, clock = 0, lastTime = 0, displayPixelRatio = 0;
   let toastUntil = 0, marker = null, pendingGreeting = false, lastStatus = '';
   const pointers = new Map();
   let gesture = null;
@@ -62,21 +61,22 @@
   $('#sound-toggle').addEventListener('click',()=>islandAudio.setEnabled(!islandAudio.enabled));
   $('#sound-volume').addEventListener('input',event=>{const value=Number(event.target.value);islandAudio.setVolume(value/100);$('#sound-volume-value').textContent=`${value}%`;});
   islandAudio.setEnabled(true);
-  let previewHour = null, timeStamp = -1;
+  let previewHour = null, previewDay = null, timeRate = 1, timeStamp = -1;
   const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
-  let lighting = { hour: 12, minute: 0, second: 0, shadowX: 0, shadowY: 20, length: 1, opacity: .14 };
+  let lighting = { day:Math.floor((Date.now()+8*3600000)/86400000),hour: 12, minute: 0, second: 0, shadowX: 0, shadowY: 20, length: 1, opacity: .14 };
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const P = (x, y) => ({ x, y });
 
-  // Ground anchors follow the stair treads and bridge decks in the original illustration.
+  // Foot anchors follow the middle of the v72 master bridge decks and stair treads.
+  // Keep the bends between the parapets; the old upper-bridge line ran on the front wall.
   const nodes = [
     P(450, 635), P(423, 662), P(397, 681), P(351, 716), P(324, 757),
-    P(323, 799), P(340, 839), P(371, 870), P(412, 895), P(460, 918),
-    P(505, 942), P(540, 978), P(563, 1011), P(584, 1047),
+    P(323, 799), P(340, 839), P(371, 870), P(422, 879), P(500, 922),
+    P(538, 935), P(578, 975), P(606, 1014), P(628, 1047),
     P(663, 1060), P(751, 1070), P(845, 1050), P(899, 1031),
-    P(548, 1082), P(513, 1124), P(479, 1164), P(439, 1201),
+    P(574, 1094), P(530, 1139), P(486, 1180), P(442, 1218),
     P(385, 1236), P(337, 1224), P(302, 1218), P(400, 1284),
     P(421, 1332), P(452, 1381), P(484, 1430), P(516, 1475),
     P(554, 1517), P(625, 1540), P(697, 1536), P(748, 1490)
@@ -134,9 +134,10 @@
     for (const [a, b] of links) {
       const point = project(p, nodes[a], nodes[b]);
       const d = distance(p, point);
-      if (!best || d < best.d) best = { point, anchors: [a, b], d, name: '島上的石階' };
+      const bridge=(a>=8&&b<=13)||(a===13&&b===18)||(a>=18&&b<=21);
+      if (!best || d < best.d) best = { point, anchors: [a, b], d, clearance:bridge?10:22, name: '島上的石階' };
     }
-    return best.d <= snap ? best : null;
+    return best.d <= (snap===Infinity?Infinity:Math.min(snap,best.clearance)) ? best : null;
   }
   function resolveTarget(p) {
     // A building-front click must not be stolen by the nearby floor snap zone.
@@ -223,7 +224,8 @@
     width = rect.width; height = rect.height;
     buildingNameMetrics = null;
     // Match the physical display, with a bounded buffer on very large displays.
-    const dpr = Math.min(devicePixelRatio || 1, 3, Math.sqrt(16777216 / (width * height)));
+    displayPixelRatio=devicePixelRatio||1;
+    const dpr = Math.min(displayPixelRatio, 3, Math.sqrt(16777216 / (width * height)));
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
@@ -314,32 +316,48 @@
   $('#wave').addEventListener('click', () => { greet(); setControls(false, true); });
   function setMotion(enabled) {
     motionEnabled = enabled;
+    timeStamp=-1;updateLighting();
     roomExperience.setMotion(enabled);
     $('#motion-toggle').setAttribute('aria-pressed', String(enabled));
     $('#motion-toggle').textContent = enabled ? '動態 開' : '動態 暫停';
   }
   $('#motion-toggle').addEventListener('click', () => setMotion(!motionEnabled));
-  $('#light-time').addEventListener('input', event => { previewHour = Number(event.target.value); timeStamp = -1; updateLighting(); });
-  $('#live-time').addEventListener('click', () => { previewHour = null; timeStamp = -1; updateLighting(); });
+  $('#light-time').addEventListener('input', event => { previewDay??=lighting.day; previewHour = Number(event.target.value); timeRate=0; timeStamp = -1; updateLighting(); });
+  $('#time-rate').addEventListener('change',event=>{
+    const rate=Number(event.target.value);if(![0,1,60,300,900,3600].includes(rate))return;
+    if(previewHour===null){previewHour=lighting.hour+lighting.minute/60+lighting.second/3600;previewDay=lighting.day;}
+    timeRate=rate;timeStamp=-1;updateLighting();
+  });
+  $('#live-time').addEventListener('click', () => { previewHour = null; previewDay=null; timeRate=1; timeStamp = -1; updateLighting(); });
+  $('#star-lines').addEventListener('click',()=>{
+    if(!atmosphere)return;const map=atmosphere.getStarMap();map.configure({showLines:!map.showLines});
+    $('#star-lines').setAttribute('aria-pressed',String(map.showLines));
+  });
   let windUIStamp=-1;
   function updateWindControls(){
     if(!atmosphere)return;
-    const wind=atmosphere.windSnapshot(),angle=Math.round(wind.direction)%360;
-    const names=['北','東北','東','東南','南','西南','西','西北'];
+    const wind=atmosphere.windSnapshot(),right=wind.direction===90;
     $('#wind-speed-value').textContent=Number(wind.speed.toFixed(2))+'×';
-    $('#wind-direction-value').textContent=names[Math.round(angle/45)%8]+' '+angle+'°';
-    $('#wind-arrow').style.transform='rotate('+angle+'deg)';
+    $('#wind-direction-value').textContent=right?'向右':'向左';
+    $('#wind-arrow').textContent=right?'→':'←';
+    $('#wind-left').setAttribute('aria-pressed',String(!right));
+    $('#wind-right').setAttribute('aria-pressed',String(right));
     $('#wind-random').setAttribute('aria-pressed',String(wind.mode==='random'));
-    if(document.activeElement!==$('#wind-direction'))$('#wind-direction').value=angle;
+    $('#wind-speed-auto').setAttribute('aria-pressed',String(wind.speedMode==='random'));
+    if(wind.speedMode==='random'&&document.activeElement!==$('#wind-speed'))$('#wind-speed').value=wind.speed;
   }
   $('#wind-speed').addEventListener('input',event=>{
     atmosphere?.setWind({speed:Number(event.target.value)});updateWindControls();
   });
-  $('#wind-direction').addEventListener('input',event=>{
-    atmosphere?.setWind({mode:'manual',direction:Number(event.target.value)});updateWindControls();
-  });
+  document.querySelectorAll('[data-wind-direction]').forEach(button=>button.addEventListener('click',()=>{
+    atmosphere?.setWind({mode:'manual',direction:Number(button.dataset.windDirection)});updateWindControls();
+  }));
   $('#wind-random').addEventListener('click',()=>{
     if(atmosphere)atmosphere.setWind({mode:atmosphere.wind.mode==='random'?'manual':'random'});
+    updateWindControls();
+  });
+  $('#wind-speed-auto').addEventListener('click',()=>{
+    if(atmosphere)atmosphere.setWind({speedMode:atmosphere.wind.speedMode==='random'?'manual':'random'});
     updateWindControls();
   });
   document.querySelectorAll('.place[data-place]').forEach(button => button.addEventListener('click', () => visit(button.dataset.place)));
@@ -674,6 +692,7 @@
   function draw() {
     ctx.clearRect(0, 0, width, height);
     const atmosphereView={width,height,camera,baseScale,time:animationTime,lighting};
+    atmosphereView.skyHorizon=atmosphere.sea(atmosphereView).horizon;
     atmosphere.background(ctx,atmosphereView);
     const center = screenCenter();
     ctx.save(); ctx.translate(center.x, center.y); ctx.scale(camera.scale, camera.scale); ctx.translate(-camera.x, -camera.y);
@@ -702,23 +721,32 @@
   }
   function updateLighting() {
     const now = Date.now();
-    if (now - timeStamp < 200) return;
+    const interval=previewHour!==null&&timeRate>60?Math.max(16,12000/timeRate):200;
+    if (now - timeStamp < interval) return;
     timeStamp = now;
     let h, m, s;
     if (previewHour === null) {
       const parts = Object.fromEntries(localTime.formatToParts(new Date(now)).map(p => [p.type, p.value]));
       h = Number(parts.hour); m = Number(parts.minute); s = Number(parts.second) + (now % 1000) / 1000;
-    } else { h = Math.floor(previewHour); m = Math.floor((previewHour - h) * 60); s = 0; }
+    } else { h = Math.floor(previewHour); const minutes=(previewHour-h)*60; m = Math.floor(minutes); s=(minutes-m)*60; }
     const hour = h + m / 60 + s / 3600;
+    const day=previewHour===null?Math.floor((now+8*3600000)/86400000):(previewDay??Math.floor((now+8*3600000)/86400000));
     const sunAngle = (hour - 6) / 12 * Math.PI;
     const elevation = Math.max(0, Math.sin(sunAngle));
     const palette=IslandAtmosphere.lightAt(hour);
     const length = 1 + (1 - elevation) * 2.5 + palette.dusk*.7;
-    lighting = { ...palette,hour: h, minute: m, second: s, shadowX: -Math.cos(sunAngle) * 40 * length, shadowY: 12 + elevation * 15, length, opacity: .045 + elevation * .14 + palette.dusk*.10 };
+    lighting = { ...palette,day,hour: h, minute: m, second: s, shadowX: -Math.cos(sunAngle) * 40 * length, shadowY: 12 + elevation * 15, length, opacity: .045 + elevation * .14 + palette.dusk*.10 };
+    const date=new Date(day*86400000);
+    const dateISO=date.toISOString().slice(0,10);
+    $('#playback-date').textContent=dateISO.replaceAll('-','/');
+    $('#playback-date').dateTime=dateISO;
+    $('#star-status').textContent=palette.night>.05?'星空隨時間轉動，星光與流星各自變化':'目前為白晝；可拖曳島上時間至夜間觀星';
     $('#island-time').textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    $('#time-mode').textContent = previewHour === null ? '台灣即時' : '光影預覽';
+    $('#time-mode').textContent = previewHour === null ? '台灣即時' : timeRate===0?'光影暫停':'時間預覽';
+    $('#time-rate').value=String(timeRate);
+    $('#time-rate-help').textContent=timeRate===0?'拖曳時間可定格觀察光影':timeRate===1?'依正常時間流逝':`每秒推進 ${timeRate>=3600?'1 小時':timeRate/60+' 分鐘'}`;
     $('#live-time').classList.toggle('selected', previewHour === null);
-    if (previewHour === null && document.activeElement !== $('#light-time')) $('#light-time').value = hour;
+    if (document.activeElement !== $('#light-time')) $('#light-time').value = hour;
   }
   function drawTimeShadows() {
     const l = lighting;
@@ -796,18 +824,19 @@
     ctx.restore();
   }
   function frame(time) {
+    if(displayPixelRatio!==(devicePixelRatio||1))resize();
     const dt = lastTime ? Math.min((time - lastTime) / 1000, .15) : 0;
     lastTime = time;
-    if (!document.hidden) { clock += dt; if (ready) { if (motionEnabled) animationTime += dt; update(dt); draw(); } }
+    if (!document.hidden) { clock += dt; if (ready) { if (motionEnabled) { animationTime += dt; if(previewHour!==null&&timeRate>0){const next=previewHour+dt*timeRate/3600;previewDay+=Math.floor(next/24);previewHour=next%24;} } update(dt); draw(); } }
     requestAnimationFrame(frame);
   }
   function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
   resize();
-  Promise.all([load(sunSky,'assets/photographic-sun-sky-v60.png'),load(skyPlate,'assets/reference-sky-v55.png'),load(distantIslands,'assets/distant-islands-v51.png'),load(workshopArt,'assets/island-workshop-reference-v48.png'),load(reorderedArt,'assets/island-building-swap-v47.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'Otsuka-Island.jpg'), load(islandMask, 'assets/island-cutout.png'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(edaArt, 'assets/eda-island-v8.jpg'), load(birdSheet, 'assets/sparrow-states.png'), load(validationArt, 'assets/verification-island-v7.jpg'), load(designArt, 'assets/design-island-v9.jpg'), ...Object.entries(detailImages).map(([key,image])=>load(image, key==='terrace'?'assets/workshop-terrace-clean-v18.jpg':'assets/island-detail-'+key+'-v14.jpg'))]).then(() => {
+  Promise.all([load(sunSky,'assets/photographic-sun-sky-v60.png'),load(skyPlate,'assets/rounded-cloud-sky-v81.png'),load(distantIslands,'assets/distant-islands-v51.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'assets/island-master-4k-v72.webp'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(birdSheet, 'assets/sparrow-states.png')]).then(() => {
     atmosphere=new IslandAtmosphere(cloud,distantIslands,Math.random,skyPlate,sunSky);
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
-    life = createIslandLife({ ctx, original: island, mask: islandMask, reorderedArt, workshopArt, edaArt, birdSheet, validationArt, designArt, detailImages, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
+    life = createIslandLife({ ctx, unifiedArt:island, birdSheet, isWalkable: p => !!ground(p, 22), onBirdState:(birds,t)=>islandAudio.updateBirds(birds,t,motionEnabled) });
     roomExperience.setCharacterRenderer((g, subject)=>renderDoctor(g, subject, {height:280, perspective:1}));
     islandCat=new IslandCat({image:catImage,actionImage:catActions,island:{points:nodes,doors:Object.fromEntries(Object.entries(places).map(([key,place])=>[key,{porch:{...nodes[place.node]},door:{...place.door}}])),isWalkable:p=>!!ground(p,22),findPath:(start,p)=>{const target=ground(p,22);return target?findPath(start,target):null;}},getPeople:location=>{const people=npcLife?.people(location)||[];if(location===(roomExperience.key||'island'))people.push(roomExperience.key?{...roomExperience.world.actor,radius:64}:entry?{x:actor.x+(places[entry.key].door.x-actor.x)*smooth(entry.progress),y:actor.y+(places[entry.key].door.y-actor.y)*smooth(entry.progress),radius:43}:actor);return people;},getPlayer:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:{location:'island',x:actor.x,y:actor.y},onVoice:voice=>islandAudio.catVoice(voice)});
     roomExperience.setCat(islandCat);
@@ -828,7 +857,7 @@
     coworkerState:key=>npcLife?.snapshot(key),
     walkSpeed: WALK_SPEED,
     roomState: () => ({ ...roomExperience.snapshot(), pending: pendingRoom, entering: entry ? { ...entry } : null }),
-    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, lighting: { ...lighting },wind:atmosphere?.windSnapshot() }),
+    getState: () => ({ ready, x: actor.x, y: actor.y, moving: !!actor.route.length, route: actor.route.map(p => ({ ...p })), wave: actor.wave, speech: actor.speech, speechTopic: actor.speech ? EDA_GREETING_TOPICS[previousTopic]?.product : null, phase: actor.phase, facing: actor.facing, destination: actor.destination, zoom: camera.zoom, selectedBuilding, cloudTime: animationTime, idle: actor.idle, nextWave: actor.nextWave, reducedMotion, motionEnabled, timeRate, timeMode:previewHour===null?'live':'preview', lighting: { ...lighting },wind:atmosphere?.windSnapshot() }),
     resolveTarget: p => resolveTarget(p), findPath: (start, target) => findPath(start, target),
     isWalkable: p => !!ground(p, 22),
     sceneSnapshot: () => life?.snapshot(),

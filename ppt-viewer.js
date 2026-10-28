@@ -1,6 +1,11 @@
 (() => {
   'use strict';
   class IslandPPTViewer {
+    static titleFromSource(source,fallback=''){
+      if(typeof source!=='string')return fallback;
+      const match=/^[^_]+_\d+_(.+)\.pptx$/i.exec(source);
+      return match?.[1].trim()||fallback;
+    }
     constructor(container) {
       this.container=container;this.request=0;this.frame=0;this.cache=new Map();this.cacheKey=null;
       this.ahead=matchMedia('(max-width:760px)').matches?2:3;
@@ -21,7 +26,7 @@
         const manifest=await response.json();if(request!==this.request)return;
         const deck=manifest[key];if(!deck||!Array.isArray(deck.slides)||!deck.slides.length||!deck.slides.every(s=>/^rendered\/[a-z]+\/[a-f0-9]+\/slide-\d+\.jpg$/.test(s)))throw Error('deck');
         const cacheKey=key+':'+deck.sha256;if(cacheKey!==this.cacheKey){this.cache.clear();this.cacheKey=cacheKey;}
-        this.deck=deck;this.show(0);
+        this.deck=deck;this.show(0);return deck;
       }catch{if(request===this.request)this.status('簡報尚未準備完成，請稍後重新開啟。');}
     }
     controls(){const count=this.deck?.slides.length||0;this.container.querySelector('.ppt-prev').disabled=!count||this.index===0;this.container.querySelector('.ppt-next').disabled=!count||this.index===count-1;this.container.querySelector('.ppt-count').textContent=count?(this.index+1)+' / '+count:'';}

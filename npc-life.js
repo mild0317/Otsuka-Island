@@ -17,8 +17,27 @@
         this.workers[key]={key,profile,name:profile.name,x:p.x,y:p.y,height:profile.height,station:profile.start,heading:Math.atan2(p.look.y-p.y,p.look.x-p.x),phase:random()*6,time:0,elapsed:0,duration:8+random()*7,kind:'work',pose:'work',previousPose:'work',blend:1,route:[],steps:[],job:'initial',previousJob:'',speed:0,walkSpeed:100,blocked:0,prop:null,yielding:false,history:[],completed:0};
         this.workers[key].items=Object.entries(profile.stations).filter(([,s])=>s.item).map(([station,s])=>({id:key+'-'+station,kind:s.prop,hiddenAtRest:!!s.storage,home:{...s.item},station,location:'table',progress:0}));
         this.settle(this.workers[key]);
+        this.workers[key].idleSeed=random()*30;
+      }
+      this.workshopWorkers=IslandNPCRoutines.workshopTeam.map(({assetRoom,x,y},index)=>({
+        ...this.workers[assetRoom],key:'workshop',assetRoom,x,y,kind:'stand',pose:'front',previousPose:'front',
+        heading:Math.PI/2,targetHeading:Math.PI/2,poseSign:1,blend:1,static:true,prop:null,
+        route:[],steps:[],items:[],history:[],goal:null,targetStation:null,idleSeed:this.workers[assetRoom].idleSeed+11+index
+      }));
+      this.settleWorkshop('portrait');
+    }
+    settleWorkshop(scene){
+      const scenes=IslandNPCRoutines.workshopScenes,names=Object.keys(scenes);
+      this.workshopScene=scene&&scenes[scene]?scene:names[Math.min(names.length-1,Math.floor(this.random()*names.length))];
+      for(const preset of scenes[this.workshopScene]){
+        const w=this.workshopWorkers.find(p=>p.assetRoom===preset.assetRoom);
+        Object.assign(w,{x:preset.x,y:preset.y,station:preset.station,kind:preset.kind,workshopScene:this.workshopScene,workshopPose:preset.pose,
+          pose:preset.pose,previousPose:preset.pose,heading:preset.heading,targetHeading:preset.heading,poseSign:Math.cos(preset.heading)<0?-1:1,
+          previousSign:Math.cos(preset.heading)<0?-1:1,blend:1,static:true,prop:null,speed:0,gait:0,route:[],steps:[],goal:null,
+          elapsed:0,idleSeed:this.random()*30,targetStation:{x:preset.x,y:preset.y,look:{x:preset.x+Math.cos(preset.heading)*100,y:preset.y-150},contact:preset.contact}});
       }
     }
+    enter(key){this.doctorLocation=key;if(key==='workshop')this.settleWorkshop();else if(this.workers[key])this.settle(this.workers[key]);}
     // On each doctor visit a coworker holds one of three fixed poses, chosen
     // at random: seated operating the right chair, seated working at the left
     // chair/stool, or standing facing the camera. No walking, no thinking, no
@@ -37,16 +56,20 @@
       w.pose=this.poseFor(w);w.previousPose=w.pose;w.poseSign=Math.cos(w.heading)<0?-1:1;w.blend=1;
     }
     load(key){
+      if(key==='workshop')return Promise.all([IslandRoomSeating.load(key),...this.workshopWorkers.map(w=>this.load(w.assetRoom))]).then(()=>this.ready(key));
       const w=this.workers[key];if(!w)return Promise.resolve();if(this.loads[key])return this.loads[key];
       this.images[key]={};
       this.loads[key]=Promise.all([IslandRoomSeating.load(key),...['seats','gestures','views',...(w.profile.asset==='anthony'?['portrait']:[])].map(part=>new Promise(resolve=>{const im=new Image();im.onload=()=>{this.images[key][part]=im;resolve();};im.onerror=()=>resolve();im.src=part==='portrait'?'assets/npc-anthony-front-v35.png':'assets/npc-'+w.profile.asset+'-'+part+'-v'+(part==='seats'?24:23)+'.png';}))]).then(()=>this.ready(key));
       return this.loads[key];
     }
-    ready(key){return IslandRoomSeating.ready(key)&&['seats','gestures','views',...(this.workers[key]?.profile.asset==='anthony'?['portrait']:[])].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
-    body(key){const w=this.workers[key];return w?(IslandRoomSeating.body(w)||{x:w.x,y:w.y,radius:66,name:w.name}):null;}
-    people(key){const body=this.body(key);return body?[body]:[];}
+    ready(key){if(key==='workshop')return IslandRoomSeating.ready(key)&&this.workshopWorkers.every(w=>this.ready(w.assetRoom));return IslandRoomSeating.ready(key)&&['seats','gestures','views',...(this.workers[key]?.profile.asset==='anthony'?['portrait']:[])].every(part=>this.images[key]?.[part]?.naturalWidth>0);}
+    roomWorkers(key){return key==='workshop'?this.workshopWorkers:this.workers[key]?[this.workers[key]]:[];}
+    workerBody(w){return IslandRoomSeating.body(w)||{x:w.x,y:w.y,radius:66,name:w.name};}
+    body(key){const w=this.roomWorkers(key)[0];return w?this.workerBody(w):null;}
+    people(key){return this.roomWorkers(key).map(w=>this.workerBody(w));}
     otherBodies(key){const d=this.getDoctor();return d?.location===key?[{...d,radius:67}]:[];}
     poseFor(w){
+      if(w.key==='workshop'&&w.workshopPose)return w.workshopPose;
       if(w.prop&&w.kind==='walk')return 'hold';
       if(['type','seatedWork','sit','seatedLook'].includes(w.kind))return 'sit';
       if(w.kind==='half')return 'half';
@@ -91,8 +114,8 @@
       // When the doctor steps into a room, re-settle that room's coworker into
       // a new random fixed pose. Nobody walks or cycles actions otherwise.
       const location=this.getDoctor()?.location||null;
-      if(location!==this.doctorLocation){this.doctorLocation=location;if(location&&this.workers[location])this.settle(this.workers[location]);}
-      for(const w of Object.values(this.workers)){
+      if(location!==this.doctorLocation){if(location)this.enter(location);else this.doctorLocation=null;}
+      for(const w of [...Object.values(this.workers),...this.workshopWorkers]){
         w.time+=dt;w.blend=Math.min(1,w.blend+dt/(w.transitionDuration||.8));
         if(w.static){
           w.speed=0;w.gait=(w.gait||0)*Math.exp(-dt*6);w.elapsed+=dt;
@@ -137,10 +160,12 @@
     requestYield(){}
     allowsDoctorStep(key,from,to){return IslandCatTerrain.peopleClear(from,to,this.people(key),66);}
     draw(key,g){
-      const w=this.workers[key];if(!w)return;
-      IslandNPCRenderer.draw(g,w,this.images[key],this.fallbackImages[w.profile.asset]);
+      for(const w of this.roomWorkers(key))this.drawWorker(w,g);
     }
-    snapshot(key){const w=this.workers[key];return w?{name:w.name,x:w.x,y:w.y,height:w.height,working:true,animationTime:w.time,action:w.kind,station:w.station,job:w.job,pose:w.pose,previousPose:w.previousPose,transition:ease(w.blend),heading:w.heading,speed:w.speed,route:w.route.map(p=>({...p})),goal:w.goal?{x:w.goal.x,y:w.goal.y}:null,yielding:w.yielding,prop:w.prop?{...w.prop,home:{...w.prop.home}}:null,habit:w.profile.habit,completed:w.completed,history:w.history.map(x=>({...x})),assetsReady:this.ready(key)}:null;}
+    drawWorker(w,g){IslandNPCRenderer.draw(g,w,this.images[w.assetRoom||w.key],this.fallbackImages[w.profile.asset]);}
+    roomSnapshot(key){return this.roomWorkers(key).map(w=>this.workerSnapshot(w));}
+    snapshot(key){const w=this.roomWorkers(key)[0];return w?this.workerSnapshot(w):null;}
+    workerSnapshot(w){return{name:w.name,x:w.x,y:w.y,height:w.height,working:true,animationTime:w.time,action:w.kind,station:w.station,job:w.job,workshopScene:w.workshopScene||null,pose:w.pose,previousPose:w.previousPose,transition:ease(w.blend),heading:w.heading,speed:w.speed,route:w.route.map(p=>({...p})),goal:w.goal?{x:w.goal.x,y:w.goal.y}:null,yielding:w.yielding,prop:w.prop?{...w.prop,home:{...w.prop.home}}:null,habit:w.profile.habit,completed:w.completed,history:w.history.map(x=>({...x})),assetsReady:this.ready(w.assetRoom||w.key)};}
   }
   IslandNPCLife.POSES=POSES;
   window.IslandNPCLife=IslandNPCLife;

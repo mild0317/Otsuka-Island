@@ -38,5 +38,20 @@
     }
     return steps;
   }
-  window.IslandNPCRoutines=Object.freeze({profiles,makeJob});
+  // First placement in the workshop, independent of each person's home-room pose.
+  const workshopTeam=[{assetRoom:'clock',x:470,y:850},{assetRoom:'library',x:1050,y:884},{assetRoom:'lab',x:1250,y:800}];
+  const workshopScenes={
+    portrait:workshopTeam.map(p=>({...p,pose:'front',kind:'stand',heading:Math.PI/2,station:'portrait'})),
+    discussion:[
+      {assetRoom:'clock',x:365,y:835,pose:'work',kind:'discuss',heading:0,station:'discussion',contact:[452,612]},
+      {assetRoom:'library',x:855,y:835,pose:'fold',kind:'listen',heading:Math.PI,station:'discussion'},
+      {assetRoom:'lab',x:655,y:825,pose:'hold',kind:'discuss',heading:0,station:'discussion'}
+    ],
+    production:[
+      {assetRoom:'clock',x:440,y:708,pose:'sit',kind:'type',heading:Math.PI,station:'left'},
+      {assetRoom:'library',x:1050,y:885,pose:'work',kind:'toolWork',heading:Math.PI,station:'tools',contact:[975,680]},
+      {assetRoom:'lab',x:1236,y:808,pose:'sit',kind:'type',heading:0,station:'right'}
+    ]
+  };
+  window.IslandNPCRoutines=Object.freeze({profiles,makeJob,workshopTeam,workshopScenes});
 })();

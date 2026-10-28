@@ -7,24 +7,27 @@
   <meta name="description" content="和塚博士一起，漫步雲端的浮空研究島。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2329483e'/%3E%3Ctext x='32' y='47' text-anchor='middle' font-family='Georgia' font-size='48' fill='%23fffaf0'%3EO%3C/text%3E%3C/svg%3E">
   <title>Otsuka Island｜塚博士的浮空島</title>
-  <link rel="stylesheet" href="styles.css?v=66">
-  <script src="outlines.js?v=48" defer></script>
-  <script src="life.js?v=63" defer></script>
-  <script src="room-topics.js?v=42" defer></script>
+  <link rel="stylesheet" href="styles.css?v=92">
+  <script src="outlines.js?v=74" defer></script>
+  <script src="life.js?v=72" defer></script>
+  <script src="room-topics.js?v=78" defer></script>
   <script src="cat-terrain.js?v=22" defer></script>
-  <script src="room-world.js?v=42" defer></script>
-  <script src="room-seating.js?v=46" defer></script>
-  <script src="npc-routines.js?v=41" defer></script>
+  <script src="room-world.js?v=81" defer></script>
+  <script src="room-seating.js?v=81" defer></script>
+  <script src="npc-routines.js?v=79" defer></script>
   <script src="gait.js?v=25" defer></script>
-  <script src="npc-renderer.js?v=42" defer></script>
-  <script src="npc-life.js?v=42" defer></script>
+  <script src="npc-renderer.js?v=81" defer></script>
+  <script src="npc-life.js?v=78" defer></script>
   <script src="island-cat.js?v=22" defer></script>
-  <script src="ppt-viewer.js?v=47" defer></script>
-  <script src="rooms.js?v=61" defer></script>
+  <script src="ppt-viewer.js?v=75" defer></script>
+  <script src="rooms.js?v=78" defer></script>
   <script src="audio.js?v=22" defer></script>
   <script src="doctor-greetings.js?v=19" defer></script>
-  <script src="atmosphere.js?v=66" defer></script>
-  <script src="game.js?v=66" defer></script>
+  <script src="assets/star-catalog-v88.js" defer></script>
+  <script src="assets/vendor/astronomy.browser.min.js?v=2.1.19" defer></script>
+  <script src="star-map.js?v=92" defer></script>
+  <script src="atmosphere.js?v=92" defer></script>
+  <script src="game.js?v=92" defer></script>
 </head>
 <body>
   <header class="header"><a class="brand" href="./" aria-label="Otsuka Island 首頁"><span class="brand-mark">O<span>✦</span></span><span>OTSUKA ISLAND</span></a></header>
@@ -58,24 +61,31 @@
           <button id="follow" title="跟隨博士" aria-label="跟隨博士" aria-pressed="false">◎</button>
         </div>
         <section class="light-panel" aria-label="島上時間與光影">
+          <div class="playback-date-row"><span>播放日期</span><time id="playback-date">--/--/--</time></div>
           <div class="light-heading"><span>島上光影</span><time id="island-time">--:--</time><button id="live-time" title="回到台灣即時時間">即時</button></div>
           <input id="light-time" type="range" min="0" max="23.99" step="0.05" aria-label="預覽一天的光影時間">
           <div class="light-labels"><span>晨光</span><span id="time-mode">台灣即時</span><span>暮色</span></div>
+          <div class="time-rate-row"><label for="time-rate">時間倍率</label><select id="time-rate" aria-describedby="time-rate-help"><option value="0">暫停</option><option value="1" selected>1 倍</option><option value="60">60 倍</option><option value="300">300 倍</option><option value="900">900 倍</option><option value="3600">3600 倍</option></select></div>
+          <p id="time-rate-help">依正常時間流逝</p>
+        </section>
+        <section class="star-panel" aria-label="真實星圖">
+          <div class="star-heading"><span>真實星圖</span><button id="star-lines" type="button" aria-pressed="false">星座連線</button></div>
+          <p>星空隨播放日期與時間自然變化。<br>觀測座標：25°00′45.4″N、121°27′48.7″E。<br>日月沿獨立路徑，從左下升起、右下落下。<br><span id="star-status">夜間顯示星空</span></p>
         </section>
         <section class="wind-panel" aria-label="雲層風速與風向">
-          <div class="wind-heading"><span>雲層風場</span><button id="wind-random" type="button" aria-pressed="true">隨機風向</button></div>
+          <div class="wind-heading"><span>雲層風場</span><div class="wind-modes"><button id="wind-speed-auto" type="button" aria-pressed="true">自動風速</button><button id="wind-random" type="button" aria-pressed="true">隨機風向</button></div></div>
           <div class="wind-label"><label for="wind-speed">風速</label><output id="wind-speed-value" for="wind-speed">1.0×</output></div>
-          <input id="wind-speed" type="range" min="0" max="8" step="0.25" value="1" aria-describedby="wind-help">
-          <div class="wind-label"><label for="wind-direction">吹向</label><span id="wind-arrow" aria-hidden="true">↑</span><output id="wind-direction-value" for="wind-direction">東 90°</output></div>
-          <input id="wind-direction" type="range" min="0" max="359" step="1" value="90" aria-describedby="wind-help">
-          <p id="wind-help">0× 靜風 · 8× 快速觀察<br>調整吹向即切換手動；0° 北、90° 東。</p>
+          <input id="wind-speed" type="range" min="0" max="20" step="0.25" value="1" aria-describedby="wind-help">
+          <div class="wind-label"><span id="wind-direction-label">吹向</span><span id="wind-arrow" aria-hidden="true">→</span><output id="wind-direction-value">向右</output></div>
+          <div class="wind-directions" role="group" aria-labelledby="wind-direction-label" aria-describedby="wind-help"><button id="wind-left" type="button" data-wind-direction="270" aria-pressed="false">← 向左</button><button id="wind-right" type="button" data-wind-direction="90" aria-pressed="true">向右 →</button></div>
+          <p id="wind-help">0× 靜風 · 20× 快速觀察<br>調整風速或點選方向，改為該項手動。<br>隨機風向只向左或右，間隔至少約 3 分鐘；換向時先減緩再反向。</p>
         </section>
         <section class="doctor-card" aria-label="塚博士狀態">
           <div class="doctor-info"><div class="doctor-name">塚博士</div><p><i id="status-dot"></i><span id="status" role="status">正在享受島上的微風</span></p></div>
           <button id="wave" class="wave-button" title="和博士打招呼（G）" aria-label="和博士揮手打招呼">✋</button>
         </section>
         <div class="sound-settings"><label for="sound-volume">音樂與音效音量</label><input id="sound-volume" type="range" min="0" max="100" value="35" aria-label="音樂、鳥聲與房間音效音量"><output id="sound-volume-value" for="sound-volume">35%</output></div>
-        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 66</span></div>
+        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 92</span></div>
         <p class="controls-help">點建築進屋，點地面散步。<br>拖曳探索 · <span id="zoom-hint">滾輪縮放</span></p>
       </div>
     </section>

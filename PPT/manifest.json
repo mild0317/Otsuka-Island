@@ -1,41 +1,109 @@
 {
-    "workshop":  {
-                     "sha256":  "7cd110311b956442208170925d6e79949002db1a0c6989c48aa42b79983de51d",
-                     "source":  "製作_1.pptx",
-                     "slides":  [
-                                    "rendered/workshop/7cd110311b95/slide-001.jpg",
-                                    "rendered/workshop/7cd110311b95/slide-002.jpg",
-                                    "rendered/workshop/7cd110311b95/slide-003.jpg",
-                                    "rendered/workshop/7cd110311b95/slide-004.jpg"
-                                ]
-                 },
-    "clock":  {
-                  "sha256":  "a00938585e8a3fad0b6dd776a4741e00be6cbdd3e99121d4f731e19ed828b25d",
-                  "source":  "設計_1.pptx",
-                  "slides":  [
-                                 "rendered/clock/a00938585e8a/slide-001.jpg",
-                                 "rendered/clock/a00938585e8a/slide-002.jpg",
-                                 "rendered/clock/a00938585e8a/slide-003.jpg",
-                                 "rendered/clock/a00938585e8a/slide-004.jpg",
-                                 "rendered/clock/a00938585e8a/slide-005.jpg"
-                             ]
-              },
-    "library":  {
-                    "sha256":  "1730ca83cc8b94cb95b202cdad77520a027dbb9ae61d1313d485fec820c4a766",
-                    "source":  "驗証_1.pptx",
-                    "slides":  [
-                                   "rendered/library/1730ca83cc8b/slide-001.jpg",
-                                   "rendered/library/1730ca83cc8b/slide-002.jpg",
-                                   "rendered/library/1730ca83cc8b/slide-003.jpg"
-                               ]
-                },
-    "lab":  {
-                "sha256":  "95b1140320fa5e9a1ab35708d5e902bc63b5e86524e5b0aa223bdd8d71d755e9",
-                "source":  "模擬_1.pptx",
-                "slides":  [
-                               "rendered/lab/95b1140320fa/slide-001.jpg",
-                               "rendered/lab/95b1140320fa/slide-002.jpg",
-                               "rendered/lab/95b1140320fa/slide-003.jpg"
-                           ]
-            }
+  "clock": {
+    "sha256": "a00938585e8a3fad0b6dd776a4741e00be6cbdd3e99121d4f731e19ed828b25d",
+    "source": "設計_1_搞定原理圖設計.pptx",
+    "slides": [
+      "rendered/clock/a00938585e8a/slide-001.jpg",
+      "rendered/clock/a00938585e8a/slide-002.jpg",
+      "rendered/clock/a00938585e8a/slide-003.jpg",
+      "rendered/clock/a00938585e8a/slide-004.jpg",
+      "rendered/clock/a00938585e8a/slide-005.jpg"
+    ]
+  },
+  "clocktwo": {
+    "sha256": "a00938585e8a3fad0b6dd776a4741e00be6cbdd3e99121d4f731e19ed828b25d",
+    "source": "設計_2.pptx",
+    "slides": [
+      "rendered/clocktwo/a00938585e8a/slide-001.jpg",
+      "rendered/clocktwo/a00938585e8a/slide-002.jpg",
+      "rendered/clocktwo/a00938585e8a/slide-003.jpg",
+      "rendered/clocktwo/a00938585e8a/slide-004.jpg",
+      "rendered/clocktwo/a00938585e8a/slide-005.jpg"
+    ]
+  },
+  "clockthree": {
+    "sha256": "a00938585e8a3fad0b6dd776a4741e00be6cbdd3e99121d4f731e19ed828b25d",
+    "source": "設計_3.pptx",
+    "slides": [
+      "rendered/clockthree/a00938585e8a/slide-001.jpg",
+      "rendered/clockthree/a00938585e8a/slide-002.jpg",
+      "rendered/clockthree/a00938585e8a/slide-003.jpg",
+      "rendered/clockthree/a00938585e8a/slide-004.jpg",
+      "rendered/clockthree/a00938585e8a/slide-005.jpg"
+    ]
+  },
+  "workshop": {
+    "sha256": "7cd110311b956442208170925d6e79949002db1a0c6989c48aa42b79983de51d",
+    "source": "製作_1.pptx",
+    "slides": [
+      "rendered/workshop/7cd110311b95/slide-001.jpg",
+      "rendered/workshop/7cd110311b95/slide-002.jpg",
+      "rendered/workshop/7cd110311b95/slide-003.jpg",
+      "rendered/workshop/7cd110311b95/slide-004.jpg"
+    ]
+  },
+  "workshoptwo": {
+    "sha256": "7cd110311b956442208170925d6e79949002db1a0c6989c48aa42b79983de51d",
+    "source": "製作_2.pptx",
+    "slides": [
+      "rendered/workshoptwo/7cd110311b95/slide-001.jpg",
+      "rendered/workshoptwo/7cd110311b95/slide-002.jpg",
+      "rendered/workshoptwo/7cd110311b95/slide-003.jpg",
+      "rendered/workshoptwo/7cd110311b95/slide-004.jpg"
+    ]
+  },
+  "library": {
+    "sha256": "1730ca83cc8b94cb95b202cdad77520a027dbb9ae61d1313d485fec820c4a766",
+    "source": "驗証_1.pptx",
+    "slides": [
+      "rendered/library/1730ca83cc8b/slide-001.jpg",
+      "rendered/library/1730ca83cc8b/slide-002.jpg",
+      "rendered/library/1730ca83cc8b/slide-003.jpg"
+    ]
+  },
+  "librarytwo": {
+    "sha256": "1730ca83cc8b94cb95b202cdad77520a027dbb9ae61d1313d485fec820c4a766",
+    "source": "驗証_2.pptx",
+    "slides": [
+      "rendered/librarytwo/1730ca83cc8b/slide-001.jpg",
+      "rendered/librarytwo/1730ca83cc8b/slide-002.jpg",
+      "rendered/librarytwo/1730ca83cc8b/slide-003.jpg"
+    ]
+  },
+  "librarythree": {
+    "sha256": "1730ca83cc8b94cb95b202cdad77520a027dbb9ae61d1313d485fec820c4a766",
+    "source": "驗証_3.pptx",
+    "slides": [
+      "rendered/librarythree/1730ca83cc8b/slide-001.jpg",
+      "rendered/librarythree/1730ca83cc8b/slide-002.jpg",
+      "rendered/librarythree/1730ca83cc8b/slide-003.jpg"
+    ]
+  },
+  "lab": {
+    "sha256": "95b1140320fa5e9a1ab35708d5e902bc63b5e86524e5b0aa223bdd8d71d755e9",
+    "source": "模擬_1.pptx",
+    "slides": [
+      "rendered/lab/95b1140320fa/slide-001.jpg",
+      "rendered/lab/95b1140320fa/slide-002.jpg",
+      "rendered/lab/95b1140320fa/slide-003.jpg"
+    ]
+  },
+  "labtwo": {
+    "sha256": "95b1140320fa5e9a1ab35708d5e902bc63b5e86524e5b0aa223bdd8d71d755e9",
+    "source": "模擬_2.pptx",
+    "slides": [
+      "rendered/labtwo/95b1140320fa/slide-001.jpg",
+      "rendered/labtwo/95b1140320fa/slide-002.jpg",
+      "rendered/labtwo/95b1140320fa/slide-003.jpg"
+    ]
+  },
+  "labthree": {
+    "sha256": "95b1140320fa5e9a1ab35708d5e902bc63b5e86524e5b0aa223bdd8d71d755e9",
+    "source": "模擬_3.pptx",
+    "slides": [
+      "rendered/labthree/95b1140320fa/slide-001.jpg",
+      "rendered/labthree/95b1140320fa/slide-002.jpg",
+      "rendered/labthree/95b1140320fa/slide-003.jpg"
+    ]
+  }
 }

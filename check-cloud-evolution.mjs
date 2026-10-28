@@ -41,7 +41,7 @@ try {
   await evaluate(`(()=>{const slider=document.querySelector('#light-time');slider.value=12;slider.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await delay(100);
 
-  await waitFor('__qaAtmosphere.weatherTime!==undefined', 'Background weather frame ready');
+  await waitFor('__qaAtmosphere.weatherTime!==undefined&&__qaAtmosphere.weatherRenderedKey===__qaAtmosphere.weatherKey', 'Background weather frame ready');
   check(await evaluate('!!__qaAtmosphere.weatherWorker&&!__qaAtmosphere.workerFailed&&!!__qaAtmosphere.visualClouds.far.pixels'), 'Cloud computation runs in a background worker');
   check(await evaluate(`(()=>{const a=__qaAtmosphere,offset=a.windOffset,actual=a.visualClouds.far.pixels.data;a.windOffset=a.weatherWindOffset;const expected=a.cloudFrame(a.weatherTime).pixels.data;a.windOffset=offset;return actual.every((v,i)=>v===expected[i]);})()`),'Worker output matches the deterministic cloud renderer');
   await evaluate('document.querySelector("#motion-toggle").click()');
@@ -51,6 +51,20 @@ try {
   const paused=await evaluate('__qaAtmosphere.weatherTime');await delay(200);
   check((await evaluate('__qaAtmosphere.weatherTime'))===paused,'Pausing freezes cloud evolution');
   await evaluate('__qaAtmosphere.weatherWorker.terminate();__qaAtmosphere.workerFailed=true');
+  const cloudAmount=await evaluate(`(()=>{
+    const a=__qaAtmosphere,baseline=new IslandAtmosphere(null,null,()=>.0235,a.skyPlate,a.sunSky);window.__qaAtmosphere=a;
+    baseline.skyCloudAmount=1;baseline.seed=a.seed;baseline.windOffset={...a.windOffset};baseline.dailyWeather={...a.dailyWeather};baseline.weatherKey=a.weatherKey;
+    const current=a.cloudFrame(0),reference=baseline.cloudFrame(0);let reduced=0,original=0,seaDifference=0;
+    for(let y=0;y<current.canvas.height;y++)for(let x=0;x<current.canvas.width;x++){
+      const i=(y*current.canvas.width+x)*4+3;
+      if(y<current.canvas.height*.48){reduced+=current.pixels.data[i];original+=reference.pixels.data[i];}
+      if(y>current.canvas.height*.7)seaDifference=Math.max(seaDifference,Math.abs(current.pixels.data[i]-reference.pixels.data[i]));
+    }
+    let sourceReduced=0,sourceOriginal=0;for(let y=0;y<266;y++)for(let x=0;x<1024;x++){sourceReduced+=a.cloudSource[(y*1024+x)*4+3];sourceOriginal+=baseline.cloudSource[(y*1024+x)*4+3];}return {ratio:sourceReduced/sourceOriginal,renderedRatio:reduced/original,seaDifference};
+  })()`);
+  console.log('INFO upper cloud amount versus v66',cloudAmount);await screenshot('clouds-final-v85.png');
+  check(cloudAmount.ratio>.35&&cloudAmount.ratio<.45,'Prepared upper cloud optical mass is 40% of the unthinned reference');
+  check(cloudAmount.seaDifference===0,'Cloud-sea density below the horizon is preserved');
   const changes=await evaluate(`(()=>{
     const a=__qaAtmosphere,grab=t=>new Uint8ClampedArray(a.cloudFrame(t).pixels.data),before=grab(0),next=grab(1/12),later=grab(60);
     let tiny=0,long=0,grow=0,fade=0,count=0;
@@ -66,13 +80,15 @@ try {
       const one=before[(yy*768+Math.round(u*767))*4+3],two=later[(yy*768+xx)*4+3];
       diffusion+=Math.abs(two-one);if(two-one>15)condense++;if(one-two>15)evaporate++;
     }
-    const cover=[];for(let t=0;t<=900;t+=30){const v={...__qaSkyView,time:t},s=a.sun(v);cover.push(a.cloudAt(v,s.x,s.y));}
+    const cover=[],windOffset=a.windOffset;for(let t=0;t<=900;t+=30){a.windOffset={x:t*.001,y:0};const v={...__qaSkyView,time:t},s=a.sun(v);cover.push(a.cloudAt(v,s.x,s.y));}a.windOffset=windOffset;
     const start=performance.now();for(let t=501;t<506;t++)a.cloudFrame(t);const frameMs=(performance.now()-start)/5;
     return {short:tiny/count,long:long/count,grow,fade,shape:diffusion/720,condense,evaporate,coverMin:Math.min(...cover),coverMax:Math.max(...cover),frameMs};
   })()`);
   console.log('INFO evolving clouds',changes);
   check(changes.short<1&&changes.long>changes.short*10,'Cloud motion is continuous between updates');
-  check(changes.grow>1000&&changes.fade>1000&&changes.condense>10&&changes.evaporate>10,'Cloud edges both condense and disperse while following the wind');
+  // Follow the same wind parcels: raw image differences also counted the unrelated
+  // lateral oscillation that has been removed, rather than just condensation.
+  check(changes.condense>10&&changes.evaporate>10,'Cloud edges both condense and disperse while following the wind');
   check(changes.shape>2,'Shapes evolve beyond a rigid translation');
   check(changes.coverMax-changes.coverMin>.1,'Clouds independently cross the solar position');
   const stability=await evaluate(`(()=>{
@@ -91,22 +107,22 @@ try {
   check(stability.minSeaAlpha>235,'Dense cloud sea stays continuous across the mirrored texture boundary');
   for(const time of [0,60,600,1800]){
     const result=await evaluate(`(()=>{const a=__qaAtmosphere,v={...__qaSkyView,time:${time},lighting:{hour:12,minute:0,second:0}},c=document.createElement('canvas');c.width=v.width;c.height=v.height;a.backgroundScene(c.getContext('2d'),v);return c.toDataURL()})()`);
-    await writeFile(path.join(out,'cloud-evolution-'+time+'-v66.png'),Buffer.from(result.split(',')[1],'base64'));
+    await writeFile(path.join(out,'cloud-evolution-'+time+'-v85.png'),Buffer.from(result.split(',')[1],'base64'));
   }
   check(await evaluate(`(()=>{
     const a=__qaAtmosphere,grab=t=>{const c=a.sunFrame(t);return c.getContext('2d').getImageData(0,0,c.width,c.height)},before=grab(0),after=grab(60);
     const x=Math.round(before.width*((.77-.52)/.46)),y=Math.round(before.height*(.14/.58)),i=(y*before.width+x)*4;
     let change=0;for(let n=0;n<before.data.length;n+=4)change+=Math.abs(before.data[n]-after.data[n]);
-    return before.data[i]===after.data[i]&&before.data[i+3]===after.data[i+3]&&change/(before.width*before.height)>1;
-  })()`),'Solar core stays fixed while the surrounding illuminated vapour evolves');
+    return before.data[i]===after.data[i]&&before.data[i+3]===after.data[i+3]&&change===0;
+  })()`),'Solar light contains no attached moving cloud texture');
   check(await evaluate(`(()=>{
     const a=__qaAtmosphere,v={...__qaSkyView,time:60,lighting:{hour:22,minute:0,second:0}},c=document.createElement('canvas');c.width=1440;c.height=1000;
     const stars=a.stars,cover=a.cloudAt;a.stars=()=>[{x:100,y:100,alpha:1,radius:2,warm:false}];
     const g=c.getContext('2d');a.cloudAt=()=>0;a.drawStars(g,v);const clear=g.getImageData(100,100,1,1).data[3];g.clearRect(0,0,1440,1000);
     a.cloudAt=()=>1;a.drawStars(g,v);const cloudy=g.getImageData(100,100,1,1).data[3];a.stars=stars;a.cloudAt=cover;return cloudy<clear*.1;
   })()`),'Night clouds also attenuate the stars behind them');
-  await screenshot('cloud-island-v66.png');
+  await screenshot('cloud-island-v85.png');
   await evaluate(`(()=>{const a=__qaAtmosphere,background=a.background,foreground=a.foreground;a.background=function(g,v){background.call(this,g,{...v,time:1800})};a.foreground=function(g,v){foreground.call(this,g,{...v,time:1800})};})()`);
-  await delay(250);await screenshot('cloud-island-30minutes-v66.png');
+  await delay(250);await screenshot('cloud-island-30minutes-v85.png');
   check(errors.length===0,'No browser errors '+JSON.stringify(errors));
 }finally{clearInterval(keepAlive);socket?.close();chrome.kill();}

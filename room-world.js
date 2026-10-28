@@ -67,9 +67,10 @@
     const result={layout,isWalkable,findPath,findApproach,nodes};cache.set(key,result);return result;
   }
   class RoomWorld {
-    constructor({key,canvas,art,renderCharacter,onArrive,cat,coworkerImages,npcLife}){
+    constructor({key,canvas,art,renderCharacter,onArrive,cat,coworkerImages,npcLife,stations}){
       this.npcLife=npcLife;this.coworker=npcLife?.workers[key]||coworkers[key]||null;this.coworkerImages=coworkerImages;
       this.key=key;this.canvas=canvas;this.art=art;this.renderCharacter=renderCharacter;this.onArrive=onArrive;this.cat=cat;this.nav=navigation(key);this.layout=this.nav.layout;this.pendingStation=null;this.hold=0;this.marker=null;this.time=0;this.topicOpen=false;this.approachPoint=null;
+      this.stations=stations||[this.layout.equipment];this.stationIndex=0;
       this.actor={...point(this.layout.spawn),route:[],phase:0,gait:0,facing:0,heading:0,turn:0,wave:0,idle:0,nextWave:8+Math.random()*8,lookAt:false};
       const occupied=[...(npcLife?.people(key)||[])];if(cat?.location===key&&cat.z<295)occupied.push({x:cat.x,y:cat.y+cat.z,radius:70});if(occupied.some(p=>distance(this.actor,p)<(p.radius||70))){const free=this.nav.nodes.filter(p=>occupied.every(body=>distance(p,body)>=(body.radius||70)+6)&&distance(p,this.actor)<170&&this.nav.findPath(this.actor,p)).sort((a,b)=>distance(a,this.actor)-distance(b,this.actor))[0];if(free){this.actor.x=free.x;this.actor.y=free.y;}}
     }
@@ -78,7 +79,7 @@
       if(this.topicOpen)return false;let route=this.nav.findPath(this.actor,target,this.npcLife?.people(this.key)||[]);if(!route){this.npcLife?.requestYield(this.key,this.actor,target);route=this.nav.findPath(this.actor,target,this.npcLife?.people(this.key)||[]);}if(!route)return false;
       this.actor.route=route.filter(p=>distance(p,this.actor)>.5);this.actor.wave=0;this.actor.idle=0;this.actor.lookAt=false;this.pendingStation=station;this.approachPoint=station===null?null:{...target};this.hold=0;this.marker={...target};return true;
     }
-    visit(index){if(index!==0||this.topicOpen)return false;const approach=this.nav.findApproach(this.actor,point(this.layout.equipment.target),this.npcLife?.people(this.key)||[],110);return !!approach&&this.walkTo(approach.point,index);}
+    visit(index){const station=this.stations[index];if(!Number.isInteger(index)||!station||this.topicOpen)return false;const approach=this.nav.findApproach(this.actor,point(station.target),this.npcLife?.people(this.key)||[],110);if(!approach||!this.walkTo(approach.point,index))return false;this.stationIndex=index;return true;}
     update(dt,motion=true){
       this.time+=motion?dt:0;const a=this.actor,moving=a.route.length>0;
       a.gait+=((moving?1:0)-a.gait)*Math.min(1,dt*12);a.turn=Math.max(0,a.turn-dt*4);
@@ -103,21 +104,38 @@
           a.x=next.x;a.y=next.y;a.phase+=step*.065;budget-=step;if(step>=d){a.route.shift();a.x=goal.x;a.y=goal.y;}
         }
       }
-      if(!this.topicOpen&&!a.route.length){this.marker=null;if(this.pendingStation!==null){const look=point(this.layout.equipment.lookAt),heading=Math.atan2(look.y-a.y,look.x-a.x);a.lookAt=true;a.facing+=Math.atan2(Math.sin(heading-a.facing),Math.cos(heading-a.facing))*Math.min(1,dt*12);this.hold+=dt;if(this.hold>=.38){const index=this.pendingStation;this.pendingStation=null;this.topicOpen=true;this.onArrive(index);}}else if(motion){a.idle+=dt;if(a.wave>0)a.wave=Math.max(0,a.wave-dt);else if(a.idle>a.nextWave){a.wave=3.2;a.idle=0;a.nextWave=10+Math.random()*9;}}}
+      if(!this.topicOpen&&!a.route.length){this.marker=null;if(this.pendingStation!==null){const look=point(this.stations[this.pendingStation].lookAt),heading=Math.atan2(look.y-a.y,look.x-a.x);a.lookAt=true;a.facing+=Math.atan2(Math.sin(heading-a.facing),Math.cos(heading-a.facing))*Math.min(1,dt*12);this.hold+=dt;if(this.hold>=.38){const index=this.pendingStation;this.pendingStation=null;this.topicOpen=true;this.onArrive(index);}}else if(motion){a.idle+=dt;if(a.wave>0)a.wave=Math.max(0,a.wave-dt);else if(a.idle>a.nextWave){a.wave=3.2;a.idle=0;a.nextWave=10+Math.random()*9;}}}
       this.draw();
     }
     draw(){
       const c=this.canvas,g=c.getContext('2d'),rect=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2),w=Math.max(1,Math.round(rect.width*dpr)),h=Math.max(1,Math.round(rect.height*dpr));
       if(c.width!==w||c.height!==h){c.width=w;c.height=h;}g.setTransform(w/1536,0,0,h/1024,0,0);g.clearRect(0,0,1536,1024);
       if(this.marker){g.save();g.strokeStyle='#bd704dbb';g.lineWidth=3;g.beginPath();g.ellipse(this.marker.x,this.marker.y,20+Math.sin(this.time*5)*2,7,0,0,Math.PI*2);g.stroke();g.restore();}
+      window.IslandRoomSeating?.drawDeskProps(g,this.key);
       const entities=[{actor:this.actor,draw:()=>this.renderCharacter?.(g,this.actor)}];
-      if(this.npcLife)for(const chair of IslandRoomSeating.emptyEntities(this.key,this.coworker))entities.push({actor:chair.actor,draw:()=>chair.draw(g)});
-      if(this.coworker)entities.push({actor:this.npcLife?.body(this.key)||this.coworker,draw:()=>this.npcLife?this.npcLife.draw(this.key,g,this.art):drawCoworker(g,this.coworker,this.coworkerImages?.[this.coworker.asset],this.time)});
+      if(this.npcLife)for(const chair of IslandRoomSeating.emptyEntities(this.key,this.npcLife.roomWorkers(this.key)))entities.push({actor:chair.actor,draw:()=>chair.draw(g)});
+      if(this.npcLife)for(const worker of this.npcLife.roomWorkers(this.key))entities.push({actor:this.npcLife.workerBody(worker),draw:()=>this.npcLife.drawWorker(worker,g)});
+      else if(this.coworker)entities.push({actor:this.coworker,draw:()=>drawCoworker(g,this.coworker,this.coworkerImages?.[this.coworker.asset],this.time)});
       if(this.cat?.location===this.key)entities.push({actor:this.cat,draw:()=>this.cat.draw(g,this.key,rect.width/1536)});
       entities.sort((a,b)=>a.actor.y-b.actor.y);
-      for(const entity of entities){entity.draw();if(entity.actor===this.cat&&this.cat.z>35)continue;for(const mask of this.layout.occluders){const x=entity.actor.x,front=mask.front;let depth=-Infinity;for(let i=1;i<front.length;i++){const [ax,ay]=front[i-1],[bx,by]=front[i];if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}}if(entity.actor.y>=depth||!this.art.naturalWidth)continue;g.save();g.beginPath();mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();g.drawImage(this.art,0,0,1536,1024);g.restore();}}
+      // Clip each actor behind furniture instead of repainting opaque room art.
+      // Repainting the desk here also covered the SVG's PCB outline beneath it.
+      for(const entity of entities){
+        g.save();
+        if(!(entity.actor===this.cat&&this.cat.z>35))for(const mask of this.layout.occluders){
+          const x=entity.actor.x,front=mask.front;let depth=-Infinity;
+          for(let i=1;i<front.length;i++){
+            const [ax,ay]=front[i-1],[bx,by]=front[i];
+            if(x>=Math.min(ax,bx)-50&&x<=Math.max(ax,bx)+50){const t=Math.max(0,Math.min(1,(x-ax)/(bx-ax)));depth=Math.max(depth,ay+(by-ay)*t);}
+          }
+          if(entity.actor.y>=depth)continue;
+          g.beginPath();g.rect(0,0,1536,1024);
+          mask.poly.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip('evenodd');
+        }
+        entity.draw();g.restore();
+      }
     }
-    snapshot(){return{actor:{...this.actor,route:this.actor.route.map(p=>({...p}))},pendingStation:this.pendingStation,arrivalHold:this.hold,equipment:{outline:this.layout.equipment.outline,target:this.approachPoint?{...this.approachPoint}:point(this.layout.equipment.target),preferredTarget:point(this.layout.equipment.target),reach:110},spawn:point(this.layout.spawn),speed:230,coworkers:this.npcLife?(this.npcLife.snapshot(this.key)?[this.npcLife.snapshot(this.key)]:[]):this.coworker?[{name:this.coworker.name,x:this.coworker.x,y:this.coworker.y,working:true,animationTime:this.time}]:[]};}
+    snapshot(){const equipment=this.stations[this.stationIndex];return{actor:{...this.actor,route:this.actor.route.map(p=>({...p}))},pendingStation:this.pendingStation,arrivalHold:this.hold,equipment:{outline:equipment.outline,target:this.approachPoint?{...this.approachPoint}:point(equipment.target),preferredTarget:point(equipment.target),reach:110},spawn:point(this.layout.spawn),speed:230,coworkers:this.npcLife?this.npcLife.roomSnapshot(this.key):this.coworker?[{name:this.coworker.name,x:this.coworker.x,y:this.coworker.y,working:true,animationTime:this.time}]:[]};}
   }
   window.IslandRoomWorld=Object.freeze({layouts,navigation,RoomWorld,coworkers});
 })();

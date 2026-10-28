@@ -1,0 +1,21 @@
+{
+  "latitude": 25.01261111111111,
+  "longitude": 121.46352777777778,
+  "note": "USNO hc minus horizontal parallax correction pa; excludes refraction. Retrieved 2026-10-28.",
+  "samples": [
+    {
+      "source": "https://aa.usno.navy.mil/api/celnav?date=2026-10-28&time=00:00:00&coords=25.012611111,121.463527778",
+      "utc": "2026-10-28T00:00:00Z",
+      "body": "Sun",
+      "altitude": 24.661330000000003,
+      "azimuth": 119.23341
+    },
+    {
+      "source": "https://aa.usno.navy.mil/api/celnav?date=2026-10-28&time=14:00:00&coords=25.012611111,121.463527778",
+      "utc": "2026-10-28T14:00:00Z",
+      "body": "Moon",
+      "altitude": 38.381915,
+      "azimuth": 75.203218
+    }
+  ]
+}

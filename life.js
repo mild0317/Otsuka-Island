@@ -94,13 +94,16 @@
     }
   }
 
-  function createIslandLife({ ctx, original, mask, birdSheet, validationArt, edaArt, designArt, reorderedArt, workshopArt, detailImages = {}, isWalkable, onBirdState, random = Math.random }) {
-    const native = surface(original.naturalWidth, original.naturalHeight), nativeContext = native.getContext('2d');
-    nativeContext.drawImage(original, 0, 0);
+  function createIslandLife({ ctx, unifiedArt, original, mask, birdSheet, validationArt, edaArt, designArt, reorderedArt, workshopArt, detailImages = {}, isWalkable, onBirdState, random = Math.random }) {
+    // A single master owns the buildings, paving, cliffs and alpha edge. Never
+    // reapply the historical crop textures over a repaired master.
+    const baseArt=unifiedArt||original;
+    const native = surface(baseArt.naturalWidth, baseArt.naturalHeight), nativeContext = native.getContext('2d');
+    nativeContext.drawImage(baseArt, 0, 0);
     // The original JPG has clouds occluding a few cliff/tree edges. Recover only
     // those occluded areas from the cutout; keep original-resolution detail elsewhere.
     const recoveryAreas = [[806,383,180,165],[163,583,176,125],[958,1116,156,133],[89,1390,167,186],[140,1628,282,182],[572,1663,295,168],[791,1704,242,190]];
-    for(const [x,y,w,h] of recoveryAreas){
+    if(!unifiedArt)for(const [x,y,w,h] of recoveryAreas){
       const pw=Math.ceil(w*original.width/W),ph=Math.ceil(h*original.height/H);
       const coverage=surface(pw,ph),m=coverage.getContext('2d');
       m.filter='blur(4px)';m.fillStyle='#fff';m.fillRect(6,6,pw-12,ph-12);
@@ -110,7 +113,7 @@
       nativeContext.globalCompositeOperation='destination-out';nativeContext.drawImage(coverage,x/W*native.width,y/H*native.height);
       nativeContext.globalCompositeOperation='lighter';nativeContext.drawImage(recovered,x/W*native.width,y/H*native.height);
     }
-    nativeContext.globalCompositeOperation = 'destination-in'; nativeContext.drawImage(mask, 0, 0, native.width, native.height);
+    if(!unifiedArt){nativeContext.globalCompositeOperation = 'destination-in'; nativeContext.drawImage(mask, 0, 0, native.width, native.height);}
     nativeContext.globalCompositeOperation = 'source-over';
     const scaleX = native.width / W, scaleY = native.height / H;
     const birds = new IslandBirds({ random, isWalkable });
@@ -125,13 +128,13 @@
       g.globalCompositeOperation = 'destination-in'; g.drawImage(coverage, 0, 0);
       return { texture, box };
     }
-    if (validationArt) {
+    if (validationArt&&!unifiedArt) {
       // Replace furnishings only. The original roof, arched facade and island stay intact.
       const replacement = softPatch([[264,954],[405,1021],[414,1147],[390,1178],[336,1202],[304,1187],[279,1208],[190,1169],[188,1088],[210,1082],[260,1052]], validationArt, 1.5);
       const { texture, box } = replacement;
       nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
     }
-    if (edaArt) {
+    if (edaArt&&!unifiedArt) {
       const regions = [
         [[431,462],[523,413],[526,499],[535,501],[659,540],[670,585],[563,635],[424,582]],
         [[631,848],[695,820],[781,790],[864,816],[922,837],[1011,893],[1017,975],[978,1018],[843,1066],[618,966]],
@@ -143,7 +146,7 @@
         nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
       }
     }
-    if (designArt) {
+    if (designArt&&!unifiedArt) {
       const { texture, box } = softPatch([[431,462],[523,413],[526,478],[572,488],[580,513],[659,540],[670,585],[563,635],[424,582]], designArt, 1.5);
       nativeContext.drawImage(texture, box.x*scaleX, box.y*scaleY, box.w*scaleX, box.h*scaleY);
     }
@@ -156,7 +159,7 @@
       {key:'verification',x:175,y:935,size:270,poly:[[264,954],[405,1021],[414,1147],[390,1178],[336,1202],[304,1187],[279,1208],[190,1169],[188,1088],[210,1082],[260,1052]]},
       {key:'simulation',x:685,y:1190,size:350,poly:[[716,1240],[747,1209],[801,1198],[869,1204],[934,1231],[984,1275],[989,1392],[969,1429],[904,1462],[823,1468],[752,1448],[715,1425]]}
     ];
-    const detailLayers = detailSpecs.filter(s => detailImages[s.key]&&(!reorderedArt||s.key==='design'||s.key==='terrace')).map(spec => {
+    const detailLayers = detailSpecs.filter(s => !unifiedArt&&detailImages[s.key]&&(!reorderedArt||s.key==='design'||s.key==='terrace')).map(spec => {
       const image = detailImages[spec.key], texture = surface(image.width,image.height), g = texture.getContext('2d');
       const coverage = surface(image.width,image.height), m = coverage.getContext('2d');
       g.drawImage(image,0,0); m.scale(image.width/spec.size,image.height/spec.size); m.translate(-spec.x,-spec.y);
@@ -164,7 +167,7 @@
       g.globalCompositeOperation = 'destination-in'; g.drawImage(coverage,0,0);
       return {...spec,texture};
     });
-    if(reorderedArt){
+    if(reorderedArt&&!unifiedArt){
       // Only the building silhouettes change; original bridges, stairs, ground
       // textures and cliffs retain their exact navigation coordinates.
       for(const [key,contour] of Object.entries(IslandOutlines.replacedBuildings)){
@@ -177,25 +180,28 @@
         nativeContext.restore();
       }
     }
-    // Remove only pale matte connected to transparency, never interior highlights.
-    const pixels=nativeContext.getImageData(0,0,native.width,native.height),rgba=pixels.data;
-    const count=native.width*native.height,depth=new Uint8Array(count),queue=new Int32Array(count);
-    const isMatte=i=>rgba[i*4+3]>0&&Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])>195&&Math.max(rgba[i*4],rgba[i*4+1],rgba[i*4+2])-Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])<48;
-    let head=0,tail=0,fringeRemoved=0;
-    for(let i=0;i<count;i++){
-      if(!isMatte(i))continue;
-      const x=i%native.width,y=Math.floor(i/native.width);
-      if((x&&rgba[(i-1)*4+3]<8)||(x<native.width-1&&rgba[(i+1)*4+3]<8)||(y&&rgba[(i-native.width)*4+3]<8)||(y<native.height-1&&rgba[(i+native.width)*4+3]<8)){depth[i]=1;queue[tail++]=i;}
-    }
-    const matteWidth=Math.ceil(scaleX*7);
-    while(head<tail){
-      const i=queue[head++],x=i%native.width,y=Math.floor(i/native.width);rgba[i*4+3]=0;fringeRemoved++;
-      if(depth[i]>=matteWidth)continue;
-      for(const j of [x?i-1:-1,x<native.width-1?i+1:-1,y?i-native.width:-1,y<native.height-1?i+native.width:-1]){
-        if(j>=0&&!depth[j]&&isMatte(j)){depth[j]=depth[i]+1;queue[tail++]=j;}
+    let fringeRemoved=0;
+    if(!unifiedArt){
+      // Remove only pale matte connected to transparency, never interior highlights.
+      const pixels=nativeContext.getImageData(0,0,native.width,native.height),rgba=pixels.data;
+      const count=native.width*native.height,depth=new Uint8Array(count),queue=new Int32Array(count);
+      const isMatte=i=>rgba[i*4+3]>0&&Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])>195&&Math.max(rgba[i*4],rgba[i*4+1],rgba[i*4+2])-Math.min(rgba[i*4],rgba[i*4+1],rgba[i*4+2])<48;
+      let head=0,tail=0;
+      for(let i=0;i<count;i++){
+        if(!isMatte(i))continue;
+        const x=i%native.width,y=Math.floor(i/native.width);
+        if((x&&rgba[(i-1)*4+3]<8)||(x<native.width-1&&rgba[(i+1)*4+3]<8)||(y&&rgba[(i-native.width)*4+3]<8)||(y<native.height-1&&rgba[(i+native.width)*4+3]<8)){depth[i]=1;queue[tail++]=i;}
       }
+      const matteWidth=Math.ceil(scaleX*7);
+      while(head<tail){
+        const i=queue[head++],x=i%native.width,y=Math.floor(i/native.width);rgba[i*4+3]=0;fringeRemoved++;
+        if(depth[i]>=matteWidth)continue;
+        for(const j of [x?i-1:-1,x<native.width-1?i+1:-1,y?i-native.width:-1,y<native.height-1?i+native.width:-1]){
+          if(j>=0&&!depth[j]&&isMatte(j)){depth[j]=depth[i]+1;queue[tail++]=j;}
+        }
+      }
+      nativeContext.putImageData(pixels,0,0);
     }
-    nativeContext.putImageData(pixels,0,0);
     const trees = [
       { pivot: [371, 547], phase: 0, poly: [[256,410],[275,365],[312,350],[330,326],[367,318],[394,333],[406,366],[400,418],[408,447],[398,480],[374,502],[332,506],[299,495],[273,474],[256,449]] },
       { pivot: [749, 606], phase: 1.9, poly: [[695,450],[710,420],[740,404],[770,397],[794,391],[822,403],[838,426],[840,460],[832,483],[840,514],[831,541],[811,567],[778,579],[744,575],[721,551],[699,522],[693,491]] },
@@ -222,6 +228,7 @@
       image.src='assets/building-'+spec.key+'-'+({1024:'1k',2048:'2k',4096:'4k'}[size])+'-v62.webp';return entry;
     }
     function drawBuildingDetails(g,lighting){
+      if(unifiedArt)return;
       const matrix=g.getTransform(),density=Math.hypot(matrix.a,matrix.b);
       for(const spec of buildingSpecs){
         const left=spec.x*matrix.a+matrix.e,top=spec.y*matrix.d+matrix.f;
@@ -391,12 +398,12 @@
       const [a,b,,d]=screen.quad;
       ctx.save();
       // Animate over the remastered monitor artwork without hiding its fine routing.
-      if (detailLayers.length) { ctx.globalCompositeOperation='screen'; ctx.globalAlpha=.32; }
+      if (unifiedArt||detailLayers.length) { ctx.globalCompositeOperation='screen'; ctx.globalAlpha=.32; }
       if(screen.occlusion){ctx.beginPath();path(ctx,screen.quad);path(ctx,screen.occlusion);ctx.clip('evenodd');}
       ctx.transform((b[0]-a[0])/128,(b[1]-a[1])/128,(d[0]-a[0])/80,(d[1]-a[1])/80,a[0],a[1]);ctx.drawImage(display,0,0,128,80);ctx.restore();
     }
     function drawInteriors(t) {
-      (reorderedArt ? relocatedScreens : screens).forEach(screen=>drawScreen(screen,t));
+      (unifiedArt||reorderedArt ? relocatedScreens : screens).forEach(screen=>drawScreen(screen,t));
     }
     function drawBirds(t) {
       if(!birds.active)return;
@@ -429,7 +436,7 @@
     return {
       drawBase,drawWater,drawInteriors,drawBirds,
       update(t,actor,daylight=true){time=t;birds.update(t,actor,daylight);onBirdState?.(birds.birds,t);},
-      snapshot(){return{buildingDetails:buildingSpecs.map(spec=>({key:spec.key,drawnSource:spec.drawnSource||0,renderSize:spec.renderSize||0,box:{x:spec.x,y:spec.y,w:spec.w,h:spec.h},levels:Object.entries(spec.levels).map(([size,entry])=>({size:Number(size),ready:entry.ready,failed:entry.failed,width:entry.image.naturalWidth,height:entry.image.naturalHeight}))})),fringeRemoved,plantPatches:plants.length,resolution:{width:native.width,height:native.height},detailTextures:Object.entries(detailImages).map(([key,image])=>({key,width:image.width,height:image.height})),displayResolution:{width:display.width,height:display.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
+      snapshot(){return{unifiedArt:unifiedArt?{source:unifiedArt.getAttribute('src'),width:native.width,height:native.height}:null,buildingDetails:(unifiedArt?[]:buildingSpecs).map(spec=>({key:spec.key,drawnSource:spec.drawnSource||0,renderSize:spec.renderSize||0,box:{x:spec.x,y:spec.y,w:spec.w,h:spec.h},levels:Object.entries(spec.levels).map(([size,entry])=>({size:Number(size),ready:entry.ready,failed:entry.failed,width:entry.image.naturalWidth,height:entry.image.naturalHeight}))})),fringeRemoved,plantPatches:plants.length,resolution:{width:native.width,height:native.height},detailTextures:Object.entries(detailImages).map(([key,image])=>({key,width:image.width,height:image.height})),displayResolution:{width:display.width,height:display.height},birds:birds.snapshot(),pcbDisplayCount:screens.length};},
       treeCoverage
     };
   }

@@ -22,17 +22,8 @@ jobs:
       - name: Check whether PowerPoints changed
         id: ppt
         run: |
-          python3 - <<'PY'
-          import hashlib, json, os, pathlib
-          root = pathlib.Path('PPT')
-          manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8-sig'))
-          changed = False
-          for deck in manifest.values():
-              digest = hashlib.sha256((root / deck['source']).read_bytes()).hexdigest()
-              changed |= digest != deck['sha256'] or not deck['slides'] or not all((root / slide).is_file() for slide in deck['slides'])
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              print('render=' + str(changed).lower(), file=output)
-          PY
+          render="$(python3 scripts/build-ppt.py --check)"
+          echo "render=$render" >> "$GITHUB_OUTPUT"
       - name: Install slide rendering tools
         if: steps.ppt.outputs.render == 'true'
         run: sudo apt-get update && sudo apt-get install -y libreoffice-impress poppler-utils fonts-noto-cjk fonts-crosextra-carlito fonts-crosextra-caladea
