@@ -36,7 +36,7 @@ try {
   await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await call('Page.addScriptToEvaluateOnNewDocument',{source:"(()=>{const raf=requestAnimationFrame.bind(window);let t=0,last=0;window.requestAnimationFrame=cb=>raf(now=>{t+=(last?now-last:16)*8;last=now;cb(t)})})()"});
   const base=process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173';
-  const waitFor=async(expression,label)=>{for(let i=0;i<240;i++){if(await evaluate(expression))return;await delay(50);}throw Error(label+' '+JSON.stringify(errors));};
+  const waitFor=async(expression,label)=>{for(let i=0;i<(base.startsWith("https:")?1200:240);i++){if(await evaluate(expression))return;await delay(50);}throw Error(label+' '+JSON.stringify(errors));};
   const clickUI=async selector=>{const p=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);await click(p.x,p.y);};
   const videoReady=async()=>{
     await waitFor('location.pathname.endsWith("/videos/A1-schematic-v03-bg.mp4")','Native MP4 navigation');
