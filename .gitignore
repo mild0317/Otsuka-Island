@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 Thumbs.db
 .DS_Store
+.local-archive/
+_site/
+**/~$*
+/reference/characters/*_3D_*.png
