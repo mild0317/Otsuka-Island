@@ -11,15 +11,32 @@
       this.ahead=matchMedia('(max-width:760px)').matches?2:3;
       container.innerHTML='<div class="ppt-stage"><img class="ppt-slide" alt="" hidden><p class="ppt-status" role="status"></p></div><nav class="ppt-controls" aria-label="簡報翻頁"><button class="ppt-prev" aria-label="上一頁">←</button><span class="ppt-count" aria-live="polite"></span><button class="ppt-next" aria-label="下一頁">→</button></nav>';
       this.image=container.querySelector('img');
+      container.closest('dialog').addEventListener('close',()=>this.stopVideo());
       container.querySelector('.ppt-prev').onclick=()=>this.go(-1);
       container.querySelector('.ppt-next').onclick=()=>this.go(1);
-      container.closest('dialog').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select'))return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();if(e.key==='Home')this.show(0);else if(e.key==='End')this.show((this.deck?.slides.length||1)-1);else this.go(e.key==='ArrowLeft'?-1:1);}});
+      container.closest('dialog').addEventListener('keydown',e=>{if(this.video||e.target.matches('input,textarea,select'))return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();if(e.key==='Home')this.show(0);else if(e.key==='End')this.show((this.deck?.slides.length||1)-1);else this.go(e.key==='ArrowLeft'?-1:1);}});
       let start=null;
       container.querySelector('.ppt-stage').addEventListener('touchstart',e=>{if(e.touches.length===1)start={x:e.touches[0].clientX,y:e.touches[0].clientY};else start=null;},{passive:true});
       container.querySelector('.ppt-stage').addEventListener('touchend',e=>{if(!start)return;const p=e.changedTouches[0],dx=p.clientX-start.x,dy=p.clientY-start.y;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5)this.go(dx<0?1:-1);start=null;},{passive:true});
     }
     status(text){this.container.querySelector('.ppt-status').textContent=text;}
+    stopVideo(){
+      if(!this.video)return;
+      this.video.pause();this.video.removeAttribute('src');this.video.load();this.video.remove();this.video=null;
+    }
+    openVideo(source){
+      this.stopVideo();this.request++;this.frame++;this.deck=null;this.image.hidden=true;
+      this.container.querySelector('.ppt-controls').hidden=true;
+      this.status('正在載入影片…');
+      const video=document.createElement('video');this.video=video;
+      video.className='ppt-video';video.controls=true;video.playsInline=true;video.preload='metadata';
+      video.setAttribute('playsinline','');video.setAttribute('aria-label','原理圖設計影片');
+      video.addEventListener('loadedmetadata',()=>{if(this.video===video)this.status('');});
+      video.addEventListener('error',()=>{if(this.video===video&&video.getAttribute('src'))this.status('影片載入失敗，請返回房間後重試。');});
+      this.container.querySelector('.ppt-stage').append(video);video.src=source;
+    }
     async open(key){
+      this.stopVideo();this.container.querySelector('.ppt-controls').hidden=false;
       const request=++this.request;this.frame++;this.deck=null;this.index=0;this.image.hidden=true;this.controls();this.status('正在開啟簡報…');
       try{
         const response=await fetch('PPT/manifest.json',{cache:'no-cache'});if(!response.ok)throw Error('manifest');

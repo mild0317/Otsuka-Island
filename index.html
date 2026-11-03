@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f0ece5">
+  <link rel="preload" as="image" href="assets/island-master-4k-v72.webp" fetchpriority="high">
+  <link rel="preload" as="image" href="assets/doctor-turnaround.png" fetchpriority="high">
   <meta name="description" content="和塚博士一起，漫步雲端的浮空研究島。">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%2329483e'/%3E%3Ctext x='32' y='47' text-anchor='middle' font-family='Georgia' font-size='48' fill='%23fffaf0'%3EO%3C/text%3E%3C/svg%3E">
   <title>Otsuka Island｜塚博士的浮空島</title>
-  <link rel="stylesheet" href="src/styles.css?v=100">
+  <link rel="stylesheet" href="src/styles.css?v=101">
   <script src="src/outlines.js?v=74" defer></script>
-  <script src="src/life.js?v=72" defer></script>
+  <script src="src/life.js?v=101" defer></script>
   <script src="src/room-topics.js?v=100" defer></script>
   <script src="src/cat-terrain.js?v=22" defer></script>
   <script src="src/room-world.js?v=81" defer></script>
@@ -18,16 +20,16 @@
   <script src="src/gait.js?v=25" defer></script>
   <script src="src/npc-renderer.js?v=81" defer></script>
   <script src="src/npc-life.js?v=100" defer></script>
-  <script src="src/island-cat.js?v=22" defer></script>
-  <script src="src/ppt-viewer.js?v=75" defer></script>
-  <script src="src/rooms.js?v=100" defer></script>
+  <script src="src/island-cat.js?v=101" defer></script>
+  <script src="src/ppt-viewer.js?v=101" defer></script>
+  <script src="src/rooms.js?v=101" defer></script>
   <script src="src/audio.js?v=22" defer></script>
   <script src="src/doctor-greetings.js?v=19" defer></script>
   <script src="assets/star-catalog-v88.js" defer></script>
   <script src="assets/vendor/astronomy.browser.min.js?v=2.1.19" defer></script>
   <script src="src/star-map.js?v=100" defer></script>
-  <script src="src/atmosphere.js?v=100" defer></script>
-  <script src="src/game.js?v=100" defer></script>
+  <script src="src/atmosphere.js?v=101" defer></script>
+  <script src="src/game.js?v=101" defer></script>
 </head>
 <body>
   <header class="header"><a class="brand" href="./" aria-label="Otsuka Island 首頁"><span class="brand-mark">O<span>✦</span></span><span>OTSUKA ISLAND</span></a></header>
@@ -35,7 +37,11 @@
     <h1 class="sr-only">塚博士的浮空島</h1>
     <canvas id="world" tabindex="0" aria-label="浮空島互動地圖。點選地面散步、點選建築進屋。拖曳移動，滾輪或雙指縮放。右下角可開啟工具與地點。"></canvas>
     <div id="building-name" class="building-name" role="status" aria-live="polite" hidden></div>
-    <div id="loading" class="loading"><span class="loader"></span><p>正在前往Otsuka-Island</p></div>
+    <div id="loading" class="loading"><span class="loader"></span><p>正在前往Otsuka-Island</p><small id="loading-progress" role="status">正在準備主要素材…</small><button id="loading-retry" type="button" hidden>重新載入</button></div>
+    <script>
+      document.getElementById('loading-retry').onclick=()=>location.reload();
+      setTimeout(()=>{if(!document.getElementById('loading').classList.contains('done')){document.getElementById('loading-progress').textContent='連線較慢，仍在載入中…';document.getElementById('loading-retry').hidden=false;}},15000);
+    </script>
     <a class="mobile-qr" href="https://mild0317.github.io/Otsuka-Island/" aria-label="手機掃描 QR Code，開啟浮空島手機版">
       <img src="assets/mobile-qr.svg" width="123" height="123" alt="浮空島手機版網址 QR Code">
       <span>手機掃碼探索</span>
@@ -85,7 +91,7 @@
           <button id="wave" class="wave-button" title="和博士打招呼（G）" aria-label="和博士揮手打招呼">✋</button>
         </section>
         <div class="sound-settings"><label for="sound-volume">音樂與音效音量</label><input id="sound-volume" type="range" min="0" max="100" value="35" aria-label="音樂、鳥聲與房間音效音量"><output id="sound-volume-value" for="sound-volume">35%</output></div>
-        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 100</span></div>
+        <div class="controls-footer"><button id="motion-toggle" aria-pressed="true" title="播放或暫停環境與待機動畫">動態 開</button><span class="version">互動測試版 101</span></div>
         <p class="controls-help">點建築進屋，點地面散步。<br>拖曳探索 · <span id="zoom-hint">滾輪縮放</span></p>
       </div>
     </section>

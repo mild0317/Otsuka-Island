@@ -7,7 +7,7 @@
 - **下一階段影片企劃**：[交接入口與 12 支影片大綱](docs/video-project/README.md)。
 - **啟動本機預覽**：在此資料夾執行 `node scripts/serve.mjs`，開啟 <http://127.0.0.1:4173>。
 - **手機預覽**：雙擊 [start-mobile-preview.cmd](start-mobile-preview.cmd)，手機與電腦使用同一 Wi-Fi。
-- **公開網站**：<https://mild0317.github.io/Otsuka-Island/>；V100 加入首支 A1 原理圖設計影片。
+- **公開網站**：<https://mild0317.github.io/Otsuka-Island/>；V101 改善進島載入，A1 影片改用網站內嵌視窗播放。
 
 ## 資料夾用途
 
@@ -53,3 +53,5 @@ node tests/check-star-map.mjs
 - [素材來源索引](docs/assets/README.md)
 
 GitHub Pages 只部署 `*.html`、`.nojekyll`、`src/`、`assets/`、`PPT/`、`videos/`。`output/` 中的其他影片版本與工作檔不會自動上線。
+
+發布時另複製 `src/` 程式與樣式到網站根路徑，供舊版 HTML 快取相容；原始碼仍只維護 `src/`。

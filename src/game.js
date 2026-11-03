@@ -43,7 +43,7 @@
   let selectedBuilding = null, hoverBuilding = null, selectionTime = 0;
   let pendingRoom = null, entry = null;
   const roomExperience = new IslandRooms({
-    onOpen(key){islandAudio.enterRoom(key);},
+    onOpen(key){islandAudio.enterRoom(key);warmCoworkers(key);},
     onSound(type,key,index){islandAudio.roomEvent(type,key,index);},
     onSoundToggle(){islandAudio.setEnabled(!islandAudio.enabled);},
     onClose(key) {
@@ -176,7 +176,7 @@
   }
   function goTo(target) {
     if (!ready || roomExperience.key) return;
-    if(target.key)npcLife?.load(target.key);
+    if(target.key){npcLife?.load(target.key);warmCoworkers(target.key);}
     entry = null; pendingRoom = target.key || null;
     const nextSelection = target.key || null;
     if (selectedBuilding !== nextSelection) selectionTime = clock;
@@ -830,9 +830,29 @@
     if (!document.hidden) { clock += dt; if (ready) { if (motionEnabled) { animationTime += dt; if(previewHour!==null&&timeRate>0){const next=previewHour+dt*timeRate/3600;previewDay+=Math.floor(next/24);previewHour=next%24;} } update(dt); draw(); } }
     requestAnimationFrame(frame);
   }
-  function load(image, src) { return new Promise((resolve, reject) => { image.onload = resolve; image.onerror = () => reject(new Error(src)); image.src = src; }); }
+  const pendingImages=new WeakMap();
+  function load(image,src,priority='low'){
+    if(pendingImages.has(image))return pendingImages.get(image);
+    image.fetchPriority=priority;
+    const task=new Promise((resolve,reject)=>{
+      let attempt=0,timer;
+      const request=()=>{
+        const failed=()=>{clearTimeout(timer);if(++attempt<2)request();else reject(new Error(src));};
+        image.onload=()=>{clearTimeout(timer);resolve();};image.onerror=failed;
+        timer=setTimeout(failed,45000);image.src=src+(attempt?'?retry='+attempt:'');
+      };request();
+    });
+    pendingImages.set(image,task);return task;
+  }
+  function warmCoworkers(key){
+    const names=key==='workshop'?Object.keys(coworkerImages):[IslandNPCRoutines.profiles[key]?.asset];
+    for(const name of names)if(coworkerImages[name])load(coworkerImages[name],'assets/npc-'+name+'-seats-v24.png').catch(()=>{});
+  }
   resize();
-  Promise.all([load(sunSky,'assets/photographic-sun-sky-v60.png'),load(skyPlate,'assets/rounded-cloud-sky-v81.png'),load(distantIslands,'assets/distant-islands-v51.png'),load(catActions,'assets/cat-actions-v22.png'),...Object.entries(coworkerImages).map(([key,image])=>load(image,'assets/npc-'+key+'-seats-v24.png')),load(catImage,'assets/island-cat-v21.png'),load(island, 'assets/island-master-4k-v72.webp'), load(sprites, 'assets/doctor-turnaround.png'), load(cloud, 'assets/cloud.png'), load(birdSheet, 'assets/sparrow-states.png')]).then(() => {
+  let loadedCore=0;
+  Promise.all([[island,'assets/island-master-4k-v72.webp'],[sprites,'assets/doctor-turnaround.png']].map(([image,src])=>load(image,src,'high').then(()=>{
+    const progress=$('#loading-progress');if(progress)progress.textContent='主要素材 '+(++loadedCore)+' / 2';
+  }))).then(() => {
     atmosphere=new IslandAtmosphere(cloud,distantIslands,Math.random,skyPlate,sunSky);
     spriteTexture = document.createElement('canvas'); spriteTexture.width = 2048; spriteTexture.height = 683;
     spriteTexture.getContext('2d').drawImage(sprites, 0, 0, 2048, 683);
@@ -844,8 +864,10 @@
     npcLife=new IslandNPCLife({fallbackImages:coworkerImages,getCat:()=>islandCat,getDoctor:()=>roomExperience.key?{location:roomExperience.key,...roomExperience.world.actor}:null});
     roomExperience.setNPCLife(npcLife);
     ready = true; $('#loading').classList.add('done'); draw();
+    // Sky effects and wildlife are progressive enhancements, not an entrance gate.
+    for(const [image,src]of [[sunSky,'assets/photographic-sun-sky-v60.png'],[skyPlate,'assets/rounded-cloud-sky-v81.png'],[distantIslands,'assets/distant-islands-v51.png'],[catActions,'assets/cat-actions-v22.png'],[catImage,'assets/island-cat-v21.png'],[cloud,'assets/cloud.png'],[birdSheet,'assets/sparrow-states.png']])load(image,src).catch(error=>console.warn('背景素材暫未載入：',error.message));
   }).catch(error => {
-    $('#loading').innerHTML = '<p>圖片讀取失敗。請確認 HTML 與圖片保留在同一個資料夾。</p>';
+    $('#loading-progress').textContent='連線中斷，請重新載入再試。';$('#loading-retry').hidden=false;
     console.error('無法載入素材：', error);
   });
   requestAnimationFrame(frame);

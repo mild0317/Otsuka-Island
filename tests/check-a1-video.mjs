@@ -38,32 +38,30 @@ try {
   const base=process.env.ISLAND_TEST_URL||'http://127.0.0.1:4173';
   const waitFor=async(expression,label)=>{for(let i=0;i<(base.startsWith("https:")?1200:240);i++){if(await evaluate(expression))return;await delay(50);}throw Error(label+' '+JSON.stringify(errors));};
   const clickUI=async selector=>{const p=await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()`);await click(p.x,p.y);};
+
   const videoReady=async()=>{
-    await waitFor('location.pathname.endsWith("/videos/A1-schematic-v03-bg.mp4")','Native MP4 navigation');
-    await waitFor('document.querySelector("video")?.readyState>=2','Video decodes');
-    const info=await evaluate('(()=>{const v=document.querySelector("video");return{duration:v.duration,width:v.videoWidth,height:v.videoHeight,src:v.currentSrc}})()');
-    check(Math.abs(info.duration-94.954667)<.1&&info.width===1920&&info.height===1080,'Real selected MP4 decodes '+JSON.stringify(info));
-    return info;
+    await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-video")?.readyState>=2','Embedded video decodes');
+    const info=await evaluate('(()=>{const v=document.querySelector(".ppt-video"),r=v.getBoundingClientRect();return{duration:v.duration,width:v.videoWidth,height:v.videoHeight,src:v.currentSrc,inline:v.playsInline,controls:v.controls,fullscreen:!!document.fullscreenElement,fits:r.width<=innerWidth&&r.height<=innerHeight,dialog:document.querySelector(".room-topic-dialog").open}})()');
+    check(Math.abs(info.duration-94.954667)<.1&&info.width===1920&&info.height===1080&&info.inline&&info.controls&&!info.fullscreen&&info.fits&&info.dialog,'Selected MP4 plays in the original website frame '+JSON.stringify(info));
+    check(await evaluate('!location.pathname.endsWith(".mp4")'),'No navigation away from island');
   };
   await call('Page.navigate',{url:base});
   await waitFor('window.islandGame?.getState().ready','Island ready');
   await clickUI('#ui-toggle');await clickUI('[data-place=clock]');
   await waitFor('islandGame.roomState().open&&islandGame.roomState().imageReady','Design room ready');
-  check(await evaluate('IslandRoomTopics.clock.pptLinks[0].title===document.querySelector(".room-stations button").textContent'), 'A1 label follows video title instead of PPT filename');
-  await clickUI('.room-object[data-station="0"]');
-  const info=await videoReady();
-  await evaluate('document.querySelector("video").currentTime=60');
-  await waitFor('!document.querySelector("video").seeking&&document.querySelector("video").currentTime>=59','Seek video');
-  await screenshot('a1-video-desktop-v100.png');
-  const history=await call('Page.getNavigationHistory');
-  await call('Page.navigateToHistoryEntry',{entryId:history.entries[history.currentIndex-1].id});
-  await waitFor('window.islandGame?.getState().ready','Back to island');
-  if(!await evaluate('islandGame.roomState().open')){await clickUI('#ui-toggle');await clickUI('[data-place=clock]');await waitFor('islandGame.roomState().open&&islandGame.roomState().imageReady','Back to design room');}
+  check(await evaluate('IslandRoomTopics.clock.pptLinks[0].title===document.querySelector(".room-stations button").textContent'), 'A1 video title');
+  await clickUI('.room-object[data-station="0"]');await videoReady();
+  await evaluate('window.__qaVideo=document.querySelector(".ppt-video");__qaVideo.currentTime=60');
+  await waitFor('!__qaVideo.seeking&&__qaVideo.currentTime>=59','Seek embedded video');
+  await screenshot('a1-video-desktop-v101.png');
+  await clickUI('.room-back');
+  check(await evaluate('__qaVideo.paused&&!document.querySelector(".room-topic-dialog").open&&islandGame.roomState().open'),'Returning to room stops video');
   await clickUI('.room-object[data-station="1"]');
   await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-slide")?.naturalWidth>0','Remaining PPT opens');
-  check(true,'A2 remains a working PPT entry');
+  check(await evaluate('!document.querySelector(".ppt-controls").hidden'),'A2 keeps PPT controls');
+  await clickUI('.room-back');
   await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
-  await call('Page.navigate',{url:base+'/videos/A1-schematic-v03-bg.mp4'});
-  await videoReady();await screenshot('a1-video-mobile-v100.png');
+  await evaluate('window.__qaFast=true');await clickUI('.room-object[data-station="0"]');await videoReady();
+  await screenshot('a1-video-mobile-v101.png');
   check(errors.length===0,'No browser errors '+JSON.stringify(errors));
 }finally{clearInterval(keepAlive);socket?.close();await cleanupChrome(chrome, profile);}

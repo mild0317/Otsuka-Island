@@ -105,6 +105,7 @@
     }
     frameFor(pose){if(this.actionImage){if(pose==='running'&&Math.abs(Math.cos(this.facing))>.45)return this.actionFrames[Math.floor(this.phase)%2];const index={jumping:2,lying:3,scratching:4,climbing:5}[pose];if(index!==undefined)return this.actionFrames[index];}if(['walking','running','jumping','climbing'].includes(pose)){const dx=Math.cos(this.facing),dy=Math.sin(this.facing),row=Math.abs(dx)>.58?0:dy<0?2:1;return this.frames[row*4+Math.floor(this.phase)%4];}return this.frames[{sitting:12,sleeping:13,lying:13,grooming:14,scratching:14,stretching:15}[pose]??4];}
     draw(g,location,scale=1){
+      if(this.image?.complete===false||this.actionImage?.complete===false||this.image?.naturalWidth===0||this.actionImage?.naturalWidth===0)return false;
       if(this.location!==location||!this.frames.length)return false;
       const f=this.frameFor(this.pose),unit=(location==='island'?66:84)/(f.action?this.actionImage.width/3:this.image.width/4),change=smooth((this.time-this.poseTime)/.65),breath=1+Math.sin(this.time*(this.pose==='sleeping'?1.6:2.3))*.012,visual=this.collisionPoint();let x=visual.x,y=visual.y,alpha=this.transition?1-this.transition.progress:1,lift=0,squash=1;
       if(this.jump){const p=this.jump.progress;lift=Math.sin(Math.PI*Math.max(0,(p-.16)/.84))*this.jump.height;if(p<.16)squash-=Math.sin(p/.16*Math.PI)*.16;}if(this.landing)squash-=Math.sin(this.landing/.3*Math.PI)*.12;if(this.pose==='running')lift+=Math.abs(Math.sin(this.phase*Math.PI/2))*4;

@@ -406,7 +406,7 @@
       (unifiedArt||reorderedArt ? relocatedScreens : screens).forEach(screen=>drawScreen(screen,t));
     }
     function drawBirds(t) {
-      if(!birds.active)return;
+      if(!birds.active||birdSheet?.complete===false||!birdSheet?.naturalWidth)return;
       for(const bird of birds.birds){
         if(t<bird.visibleAt)continue;
         const flight=['flying','approaching','landing','departing'].includes(bird.state);

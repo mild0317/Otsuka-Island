@@ -199,6 +199,7 @@
       this.$('.topic-flow').querySelectorAll('span').forEach(span=>{span.classList.remove('is-current','is-done');span.removeAttribute('aria-current');});
     }
     showRoom(restoreFocus = false) {
+      this.ppt.stopVideo();
       const previous = this.activeStation; this.resetDemo(); this.activeStation = null;
       if(this.$('.room-topic-dialog').open)this.$('.room-topic-dialog').close();
       if(this.world)this.world.topicOpen=false;
@@ -211,22 +212,19 @@
     }
     selectStation(index) {
       if(!this.world||!this.snapshot().imageReady||!rooms[this.key]?.stations[index])return;
-      const video=rooms[this.key].pptLinks?.[index]?.video;
-      if(video){window.location.assign(video);return;}
       if(this.world.visit(index)){this.updateSelection();this.$('.room-topic-list').open=false;this.$('.room-walk-status').textContent='塚博士正在走向設備';}
     }
     openCopyright(){if(this.key!=='clock'||this.$('.copyright-dialog').open)return;this.world?.cancel();if(this.world)this.world.topicOpen=true;this.updateSelection();const frame=this.$('.copyright-dialog iframe');if(!frame.getAttribute('src'))frame.src='copyright.html?v=36';this.$('.copyright-dialog').showModal();this.$('.copyright-close').focus();}
     closeCopyright(restoreFocus=true){if(!this.$('.copyright-dialog').open)return;this.$('.copyright-dialog').close();if(this.world)this.world.topicOpen=false;if(restoreFocus)this.$('.copyright-book')?.focus({preventScroll:true});}
     showTopic(index) {
       const station = rooms[this.key]?.stations[index];if(!station)return;
-      const video=rooms[this.key].pptLinks?.[index]?.video;
-      if(video){window.location.assign(video);return;}
       this.resetDemo(); this.activeStation = index; this.$('.room-content').hidden = false;
       this.$('.room-topic-list').open = false;
       const link=rooms[this.key].pptLinks?.[index];
       const key=this.key,pptKey=link?.pptKey||key;
       this.$('.room-detail h3').textContent = rooms[key].name+(link?'｜'+this.stationInfo(key,index).title:'');this.$('.room-detail p').textContent = '';
-      this.ppt.open(pptKey).then(deck=>{if(deck&&this.key===key&&this.activeStation===index){this.pptManifest[pptKey]=deck;this.updatePPTLabels(key);}});
+      if(link?.video)this.ppt.openVideo(link.video);
+      else this.ppt.open(pptKey).then(deck=>{if(deck&&this.key===key&&this.activeStation===index){this.pptManifest[pptKey]=deck;this.updatePPTLabels(key);}});
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
       this.$('.room-topic-dialog').showModal();this.$('.room-content').scrollTop=0;
       this.$('.room-detail h3').focus({ preventScroll: true });

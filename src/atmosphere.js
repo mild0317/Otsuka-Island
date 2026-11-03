@@ -62,7 +62,7 @@
     applyWeather(view){this.dailyWeather=this.weatherProfile(view);this.weatherKey=Object.values(this.dailyWeather).map(v=>v.toFixed(3)).join(':');}
     prepareClouds(){
       if(this.cloudSource)return true;
-      if(!this.skyPlate?.naturalWidth)return false;
+      if(this.skyPlate?.complete===false||!this.skyPlate?.naturalWidth)return false;
       // Separate the reference photograph into blue air and optical cloud density.
       // The photograph supplies the fine texture; only the cloud layer is advected.
       const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;
@@ -247,7 +247,7 @@
     }
     islandTextures(){
       if(this.distantTextures)return this.distantTextures;
-      const image=this.distantImage;if(!image?.naturalWidth)return [];
+      const image=this.distantImage;if(image?.complete===false||!image?.naturalWidth)return [];
       const cell=image.naturalWidth/3;
       this.distantTextures=[0,1,2].map(variant=>{
         const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
@@ -453,7 +453,7 @@
       g.save();g.globalAlpha=strength*.7*(.15+.85*Math.max(0,moon.elevation))*(.3+.7*moon.illumination);g.drawImage(canvas,layer.x,layer.y,layer.w,layer.h);g.restore();
     }
     drawSun(g,view){
-      const sun=this.sun(view),image=this.sunSky;if(sun.alpha<=0||!image?.naturalWidth)return;
+      const sun=this.sun(view),image=this.sunSky;if(sun.alpha<=0||image?.complete===false||!image?.naturalWidth)return;
       if(!this.sunTexture){
         // The photographic core is near the crop's top edge. Extract it into a
         // centred square so every side of its halo has room to fade naturally.

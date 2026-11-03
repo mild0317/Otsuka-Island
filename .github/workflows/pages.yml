@@ -35,6 +35,8 @@ jobs:
           mkdir _site
           cp *.html .nojekyll _site/
           cp -r src assets PPT videos _site/
+          # Keep pre-reorganization cached HTML functional while browsers refresh.
+          cp src/*.js src/*.css _site/
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
