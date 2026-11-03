@@ -60,7 +60,7 @@ try {
   await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-slide")?.naturalWidth>0','Remaining PPT opens');
   check(await evaluate('!document.querySelector(".ppt-controls").hidden'),'A2 keeps PPT controls');
   await clickUI('.room-back');
-  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(350);
   await evaluate('window.__qaFast=true');await clickUI('.room-object[data-station="0"]');await videoReady();
   await screenshot('a1-video-mobile-v101.png');
   check(errors.length===0,'No browser errors '+JSON.stringify(errors));
