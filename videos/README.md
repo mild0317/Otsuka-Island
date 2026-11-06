@@ -10,3 +10,14 @@
 此片依使用者本次決定上線，長度不同於早期企劃的 2–5 分鐘；後續企劃與其他影片不在本次替換範圍內。
 
 GitHub Pages 會發布此資料夾；`output/` 中其他版本、原始製作素材及工作檔不會因此上傳。
+
+## V102 (2026-11-06)
+
+Four additional selected MP4 files play inside the existing website dialog; no automatic fullscreen. Original files are copied without re-encoding.
+
+| Entry | File | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| A2 / PCB Layout | `A2-pcb-layout-v01-bg.mp4` | 13176687 | `64a8afbd2ce8281c43cedcd28f8d2140102cb3bbdc34f2489aa1e3000a91bc36` |
+| A3 / Library | `A3-library-v07-bg.mp4` | 17235565 | `52a7498e25cc9a1aea934095d608519bb204200f3b8a853ad1b133db49fb896f` |
+| B1 / Schematic validation | `B1-schematic-validation-v10-bg.mp4` | 13577652 | `3390d6fff2d984a362949a6c601c089e21a618b0dedf6194b9e222452fb12b94` |
+| B2 / Layout validation | `B2-layout-validation-v04-bg.mp4` | 16321889 | `9ee38becd5f38a13952df263d22920ec43ec5785e782dc902d1eaf6facdf183f` |

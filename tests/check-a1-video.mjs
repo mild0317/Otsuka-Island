@@ -57,8 +57,8 @@ try {
   await clickUI('.room-back');
   check(await evaluate('__qaVideo.paused&&!document.querySelector(".room-topic-dialog").open&&islandGame.roomState().open'),'Returning to room stops video');
   await clickUI('.room-object[data-station="1"]');
-  await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-slide")?.naturalWidth>0','Remaining PPT opens');
-  check(await evaluate('!document.querySelector(".ppt-controls").hidden'),'A2 keeps PPT controls');
+  await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-video")?.readyState>=2','A2 video opens');
+  check(await evaluate('document.querySelector(".ppt-controls").hidden'),'A2 video hides PPT controls');
   await clickUI('.room-back');
   await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(350);
   await evaluate('window.__qaFast=true');await clickUI('.room-object[data-station="0"]');await videoReady();

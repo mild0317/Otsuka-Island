@@ -5,8 +5,8 @@ window.IslandRoomTopics = {
     name:'設計工作室', en:'EDA DESIGN STUDIO', image:'assets/room-design-chair-clean-v42.png', theme:'blue',
     pptLinks:[
       {title:'原理圖設計',source:'A1-schematic-v03-bg.mp4',video:'videos/A1-schematic-v03-bg.mp4',pptKey:'clock',outline:0,target:[480,835],lookAt:[530,520]},
-      {title:'設計簡報 2',source:'設計_2.pptx',pptKey:'clocktwo',outline:3,target:[880,715],lookAt:[955,565]},
-      {title:'設計簡報 3',source:'設計_3.pptx',pptKey:'clockthree',outline:1,target:[1065,750],lookAt:[1220,535]},
+      {title:'PCB Layout',source:'A2-pcb-layout-v01-bg.mp4',video:'videos/A2-pcb-layout-v01-bg.mp4',pptKey:'clocktwo',outline:3,target:[880,715],lookAt:[955,565]},
+      {title:'Library 管理',source:'A3-library-v07-bg.mp4',video:'videos/A3-library-v07-bg.mp4',pptKey:'clockthree',outline:1,target:[1065,750],lookAt:[1220,535]},
     ],
     title:'從電路構想到 PCB 設計',
     lead:'先確認電路想法，再把原理圖、元件與佈線規則接起來。讓第一塊 PCB，有清楚的設計起點。',
@@ -47,8 +47,8 @@ window.IslandRoomTopics = {
   library: {
     name:'驗証工作室', en:'PCB VALIDATION STUDIO', image:'assets/room-verification-chair-clean-v42.png', theme:'green',
     pptLinks:[
-      {title:'驗証簡報 1',source:'驗証_1.pptx',pptKey:'library',outline:0,target:[650,775],lookAt:[610,405]},
-      {title:'驗証簡報 2',source:'驗証_2.pptx',pptKey:'librarytwo',outline:2,target:[805,690],lookAt:[870,405]},
+      {title:'原理圖驗証',source:'B1-schematic-validation-v10-bg.mp4',video:'videos/B1-schematic-validation-v10-bg.mp4',pptKey:'library',outline:0,target:[650,775],lookAt:[610,405]},
+      {title:'PCB Layout 驗証',source:'B2-layout-validation-v04-bg.mp4',video:'videos/B2-layout-validation-v04-bg.mp4',pptKey:'librarytwo',outline:2,target:[805,690],lookAt:[870,405]},
       {title:'驗証簡報 3',source:'驗証_3.pptx',pptKey:'librarythree',outline:1,target:[890,735],lookAt:[1160,470]},
     ],
     title:'PCB 規則檢查與量測比對',

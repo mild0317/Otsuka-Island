@@ -223,7 +223,7 @@
       const link=rooms[this.key].pptLinks?.[index];
       const key=this.key,pptKey=link?.pptKey||key;
       this.$('.room-detail h3').textContent = rooms[key].name+(link?'｜'+this.stationInfo(key,index).title:'');this.$('.room-detail p').textContent = '';
-      if(link?.video)this.ppt.openVideo(link.video);
+      if(link?.video)this.ppt.openVideo(link.video,link.title);
       else this.ppt.open(pptKey).then(deck=>{if(deck&&this.key===key&&this.activeStation===index){this.pptManifest[pptKey]=deck;this.updatePPTLabels(key);}});
       this.dialog.querySelectorAll('[data-station]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.station) === index)));
       this.$('.room-topic-dialog').showModal();this.$('.room-content').scrollTop=0;

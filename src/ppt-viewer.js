@@ -24,13 +24,13 @@
       if(!this.video)return;
       this.video.pause();this.video.removeAttribute('src');this.video.load();this.video.remove();this.video=null;
     }
-    openVideo(source){
+    openVideo(source,title='影片'){
       this.stopVideo();this.request++;this.frame++;this.deck=null;this.image.hidden=true;
       this.container.querySelector('.ppt-controls').hidden=true;
       this.status('正在載入影片…');
       const video=document.createElement('video');this.video=video;
       video.className='ppt-video';video.controls=true;video.playsInline=true;video.preload='metadata';
-      video.setAttribute('playsinline','');video.setAttribute('aria-label','原理圖設計影片');
+      video.setAttribute('playsinline','');video.setAttribute('aria-label',title);
       video.addEventListener('loadedmetadata',()=>{if(this.video===video)this.status('');});
       video.addEventListener('error',()=>{if(this.video===video&&video.getAttribute('src'))this.status('影片載入失敗，請返回房間後重試。');});
       this.container.querySelector('.ppt-stage').append(video);video.src=source;
