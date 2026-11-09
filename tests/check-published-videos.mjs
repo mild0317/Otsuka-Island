@@ -41,7 +41,7 @@ try {
 
   await call('Page.navigate',{url:base});
   await waitFor('window.islandGame?.getState().ready','Island ready');
-  const groups=[['clock',[1,2]],['library',[0,1,2]],['lab',[0,2]]];
+  const groups=[['clock',[1,2]],['library',[0,1,2]],['lab',[1,2]]];
   for(const [room,stations] of groups){
     await clickUI('#ui-toggle');await clickUI('[data-place='+room+']');
     await waitFor('islandGame.roomState().open&&islandGame.roomState().imageReady','Room ready');await delay(350);
@@ -56,7 +56,7 @@ try {
       await clickUI('.room-back');check(await evaluate('__qaVideo.paused'),'Return stops video');
     }
     if(room==='lab'){
-      await clickUI('.room-object[data-station="1"]');
+      await clickUI('.room-object[data-station="0"]');
       await waitFor('islandGame.roomState().topicOpen&&document.querySelector(".ppt-slide")?.naturalWidth>0','C2 slides open');
       check(await evaluate('!document.querySelector(".ppt-video")&&!document.querySelector(".ppt-controls").hidden'),'C2 uses in-page PPT controls');
       const first=await evaluate('document.querySelector(".ppt-slide").src');

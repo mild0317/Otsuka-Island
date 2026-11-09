@@ -69,8 +69,8 @@ window.IslandRoomTopics = {
   lab: {
     name:'模擬實驗室', en:'PCB SIGNAL & POWER INTEGRITY', image:'assets/room-simulation-chair-clean-v42.png', theme:'teal',
     pptLinks:[
-      {title:'訊號完整性模擬',source:'C1-signal-integrity-v03-bg.mp4',video:'videos/C1-signal-integrity-v03-bg.mp4',pptKey:'lab',outline:1,target:[420,660],lookAt:[420,440]},
-      {title:'高速電子設計與智慧驗證整合方案',source:'C2_高速電子設計與智慧驗證整合方案_V1.pptx',pptKey:'labtwo',outline:0,target:[770,830],lookAt:[770,550]},
+      {title:'高速電子設計與智慧驗證整合方案',source:'C2_高速電子設計與智慧驗證整合方案_V1.pptx',pptKey:'labtwo',outline:1,target:[420,660],lookAt:[420,440]},
+      {title:'訊號完整性模擬',source:'C1-signal-integrity-v03-bg.mp4',video:'videos/C1-signal-integrity-v03-bg.mp4',pptKey:'lab',outline:0,target:[770,830],lookAt:[770,550]},
       {title:'電路板熱模擬',source:'C3-board-thermal-v01-bg.mp4',video:'videos/C3-board-thermal-v01-bg.mp4',pptKey:'labthree',outline:2,target:[1135,700],lookAt:[1160,440]},
     ],
     title:'高速 PCB 的訊號與電源品質',
