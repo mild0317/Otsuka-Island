@@ -2,10 +2,14 @@
 $ErrorActionPreference = 'Stop'
 $mapping = Get-Content -LiteralPath (Join-Path $Root 'PPT/decks.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $files = @(Get-ChildItem -LiteralPath (Join-Path $Root 'PPT') -File | Where-Object { $_.Extension -ieq '.pptx' })
+$renderedOnlyPath = Join-Path $Root 'PPT/rendered-only.json'
+$renderedOnly = if (Test-Path -LiteralPath $renderedOnlyPath) { Get-Content -LiteralPath $renderedOnlyPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { [pscustomobject]@{} }
 $resolved = [ordered]@{}
 foreach ($property in $mapping.PSObject.Properties) {
   $prefix = [System.IO.Path]::GetFileNameWithoutExtension($property.Value)
   $matchesForSlot = @($files | Where-Object { $_.BaseName -ieq $prefix -or $_.BaseName.StartsWith($prefix + '_', [System.StringComparison]::OrdinalIgnoreCase) })
+  $prebuilt = $renderedOnly.PSObject.Properties[$property.Name]
+  if ($matchesForSlot.Count -eq 0 -and $prebuilt -and $prebuilt.Value.source -eq $property.Value) { $resolved[$property.Name] = $property.Value; continue }
   if ($matchesForSlot.Count -ne 1) { throw ('Expected one PPT for ' + $property.Value + '; found ' + $matchesForSlot.Count + ': ' + (($matchesForSlot | ForEach-Object Name) -join ', ')) }
   $resolved[$property.Name] = $matchesForSlot[0].Name
 }
@@ -19,13 +23,17 @@ try {
   foreach ($property in $mapping.PSObject.Properties) {
     $key = $property.Name
     $source = Join-Path $Root ('PPT/' + $property.Value)
-    $hash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLower()
     $old = $previous.PSObject.Properties[$key]
+    $prebuilt = $renderedOnly.PSObject.Properties[$key]
+    if (Test-Path -LiteralPath $source) { $hash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLower() }
+    elseif ($prebuilt -and $prebuilt.Value.source -eq $property.Value) { $hash = $prebuilt.Value.sha256 }
+    else { throw ('Missing source: ' + $source) }
     if ($old -and $old.Value.sha256 -eq $hash -and $old.Value.slides.Count -gt 0 -and @($old.Value.slides | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Root ('PPT/' + $_))) }).Count -eq 0) {
       $manifest[$key] = @{source=$property.Value;sha256=$hash;slides=$old.Value.slides}
       Write-Output ($key + ': cached ' + $old.Value.slides.Count + ' slides')
       continue
     }
+    if (-not (Test-Path -LiteralPath $source)) { throw ('Missing source and valid pre-rendered slides: ' + $source) }
     if (-not $app) { $app = New-Object -ComObject PowerPoint.Application }
     $dest = Join-Path $Root ('PPT/rendered/' + $key + '/' + $hash.Substring(0,12))
     New-Item -ItemType Directory -Force $dest | Out-Null

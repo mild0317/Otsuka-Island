@@ -7,10 +7,15 @@ def resolve_decks(root):
     folder = pathlib.Path(root) / 'PPT'
     mapping = json.loads((folder / 'decks.json').read_text(encoding='utf-8-sig'))
     files = [p for p in folder.iterdir() if p.is_file() and p.suffix.lower() == '.pptx']
+    rendered_only_path = folder / 'rendered-only.json'
+    rendered_only = json.loads(rendered_only_path.read_text(encoding='utf-8')) if rendered_only_path.is_file() else {}
     resolved = {}
     for key, canonical in mapping.items():
         prefix = pathlib.Path(canonical).stem.casefold()
         matches = [p.name for p in files if p.stem.casefold() == prefix or p.stem.casefold().startswith(prefix + '_')]
+        if not matches and rendered_only.get(key, {}).get('source') == canonical:
+            resolved[key] = canonical
+            continue
         if len(matches) != 1:
             raise ValueError(f'Expected one PPT for {canonical}; found {len(matches)}: {", ".join(sorted(matches))}')
         resolved[key] = matches[0]

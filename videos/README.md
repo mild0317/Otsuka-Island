@@ -21,3 +21,15 @@ Four additional selected MP4 files play inside the existing website dialog; no a
 | A3 / Library | `A3-library-v07-bg.mp4` | 17235565 | `52a7498e25cc9a1aea934095d608519bb204200f3b8a853ad1b133db49fb896f` |
 | B1 / Schematic validation | `B1-schematic-validation-v10-bg.mp4` | 13577652 | `3390d6fff2d984a362949a6c601c089e21a618b0dedf6194b9e222452fb12b94` |
 | B2 / Layout validation | `B2-layout-validation-v04-bg.mp4` | 16321889 | `9ee38becd5f38a13952df263d22920ec43ec5785e782dc902d1eaf6facdf183f` |
+
+## V103 (2026-11-09)
+
+B3, C1 and C3 use the existing embedded player; C2 remains an in-page PowerPoint with 32 rendered slides. Selected originals are preserved without re-encoding.
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `B3-manufacturability-v02-bg.mp4` | 16364086 | `3f0006c32028f6db6444e8fd0698b39ac37a1289896f6db8d669b017f120fc1d` |
+| `C1-signal-integrity-v03-bg.mp4` | 17173641 | `b6f71187b1b8245e6c07217262d1efff280d4932f617ab2167f59f456e2d2843` |
+| `C3-board-thermal-v01-bg.mp4` | 16384676 | `931c7ce4100c45a2e6b2f4783a77ac15038bb85999adba15c759bd9ef38c7208` |
+
+C2 source exceeds the GitHub 100 MB file limit. Its original is retained locally in `output/video-series/C2/` and `PPT/`; deployment uses the 32 original PowerPoint-exported slides. `PPT/rendered-only.json` pins the source SHA-256 and requires a complete matching slide cache. No original PPTX download is offered.

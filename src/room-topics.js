@@ -49,7 +49,7 @@ window.IslandRoomTopics = {
     pptLinks:[
       {title:'原理圖驗証',source:'B1-schematic-validation-v10-bg.mp4',video:'videos/B1-schematic-validation-v10-bg.mp4',pptKey:'library',outline:0,target:[650,775],lookAt:[610,405]},
       {title:'PCB Layout 驗証',source:'B2-layout-validation-v04-bg.mp4',video:'videos/B2-layout-validation-v04-bg.mp4',pptKey:'librarytwo',outline:2,target:[805,690],lookAt:[870,405]},
-      {title:'驗証簡報 3',source:'驗証_3.pptx',pptKey:'librarythree',outline:1,target:[890,735],lookAt:[1160,470]},
+      {title:'製造可行性驗証',source:'B3-manufacturability-v02-bg.mp4',video:'videos/B3-manufacturability-v02-bg.mp4',pptKey:'librarythree',outline:1,target:[890,735],lookAt:[1160,470]},
     ],
     title:'PCB 規則檢查與量測比對',
     lead:'從「畫面上接好了」走到「檢查項目有依據」。將設計規則、電氣風險與實板觀察放在一起看。',
@@ -69,9 +69,9 @@ window.IslandRoomTopics = {
   lab: {
     name:'模擬實驗室', en:'PCB SIGNAL & POWER INTEGRITY', image:'assets/room-simulation-chair-clean-v42.png', theme:'teal',
     pptLinks:[
-      {title:'模擬簡報 1',source:'模擬_1.pptx',pptKey:'lab',outline:1,target:[420,660],lookAt:[420,440]},
-      {title:'模擬簡報 2',source:'模擬_2.pptx',pptKey:'labtwo',outline:0,target:[770,830],lookAt:[770,550]},
-      {title:'模擬簡報 3',source:'模擬_3.pptx',pptKey:'labthree',outline:2,target:[1135,700],lookAt:[1160,440]},
+      {title:'訊號完整性模擬',source:'C1-signal-integrity-v03-bg.mp4',video:'videos/C1-signal-integrity-v03-bg.mp4',pptKey:'lab',outline:1,target:[420,660],lookAt:[420,440]},
+      {title:'高速電子設計與智慧驗證整合方案',source:'C2_高速電子設計與智慧驗證整合方案_V1.pptx',pptKey:'labtwo',outline:0,target:[770,830],lookAt:[770,550]},
+      {title:'電路板熱模擬',source:'C3-board-thermal-v01-bg.mp4',video:'videos/C3-board-thermal-v01-bg.mp4',pptKey:'labthree',outline:2,target:[1135,700],lookAt:[1160,440]},
     ],
     title:'高速 PCB 的訊號與電源品質',
     lead:'先在電腦裡看看訊號怎麼走、電源怎麼送，再決定 PCB 該怎麼改。從問題位置找出可討論的改善方向。',

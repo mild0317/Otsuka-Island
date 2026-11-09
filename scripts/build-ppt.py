@@ -18,12 +18,20 @@ def main():
     mapping = resolve_decks(root)
     manifest_path = root / 'PPT' / 'manifest.json'
     old_manifest = json.loads(manifest_path.read_text(encoding='utf-8-sig')) if manifest_path.is_file() else {}
+    rendered_only_path = root / 'PPT' / 'rendered-only.json'
+    rendered_only = json.loads(rendered_only_path.read_text(encoding='utf-8')) if rendered_only_path.is_file() else {}
     manifest = {}
     needs_render = False
     for key, name in mapping.items():
         source = root / 'PPT' / name
-        digest = hashlib.sha256(source.read_bytes()).hexdigest()
         previous = old_manifest.get(key, {})
+        prebuilt = rendered_only.get(key, {})
+        if not source.is_file():
+            if prebuilt.get('source') != name or prebuilt.get('sha256') != previous.get('sha256') or not previous.get('slides') or not all((root / 'PPT' / slide).is_file() for slide in previous['slides']):
+                raise RuntimeError('Missing source and valid pre-rendered slides: ' + name)
+            manifest[key] = previous
+            continue
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
         if previous.get('sha256') == digest and previous.get('slides') and all((root / 'PPT' / slide).is_file() for slide in previous['slides']):
             manifest[key] = {**previous, 'source': name}
             if not args.check:
