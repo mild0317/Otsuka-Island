@@ -41,7 +41,7 @@ try {
 
   await call('Page.navigate',{url:base});
   await waitFor('window.islandGame?.getState().ready','Island ready');
-  const groups=[['clock',[1,2]],['library',[0,1,2]],['lab',[1,2]]];
+  const groups=[['clock',[0,1,2]],['library',[0,1,2]],['lab',[1,2]],['workshop',[0,1,2]]];
   for(const [room,stations] of groups){
     await clickUI('#ui-toggle');await clickUI('[data-place='+room+']');
     await waitFor('islandGame.roomState().open&&islandGame.roomState().imageReady','Room ready');await delay(350);
@@ -53,6 +53,9 @@ try {
       check(info.src.endsWith(expected)&&info.duration>0&&info.width>0&&info.inline&&info.controls&&!info.fullscreen&&info.dialog,'Embedded video '+JSON.stringify(info));
       await evaluate('window.__qaVideo=document.querySelector(".ppt-video");__qaVideo.currentTime=Math.min(30,__qaVideo.duration/2)');
       await waitFor('!__qaVideo.seeking&&__qaVideo.currentTime>0','Video seek');
+      await evaluate('__qaVideo.muted=true;__qaVideo.play()');
+      await waitFor('!__qaVideo.paused&&__qaVideo.currentTime>0','Video plays');
+      check(await evaluate('__qaVideo.webkitAudioDecodedByteCount===undefined||__qaVideo.webkitAudioDecodedByteCount>0'),'Audio track decodes');
       await clickUI('.room-back');check(await evaluate('__qaVideo.paused'),'Return stops video');
     }
     if(room==='lab'){
@@ -62,7 +65,7 @@ try {
       const first=await evaluate('document.querySelector(".ppt-slide").src');
       await clickUI('.ppt-next');
       await waitFor('document.querySelector(".ppt-slide").src!=='+JSON.stringify(first)+'&&document.querySelector(".ppt-slide").naturalWidth>0','C2 next slide');
-      await screenshot('c2-ppt-v103.png');
+      await screenshot('c2-ppt-current.png');
       await clickUI('.room-back');
     }
     await clickUI('.room-close');

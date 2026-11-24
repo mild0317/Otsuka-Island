@@ -4,9 +4,9 @@ window.IslandRoomTopics = {
   clock: {
     name:'設計工作室', en:'EDA DESIGN STUDIO', image:'assets/room-design-chair-clean-v42.png', theme:'blue',
     pptLinks:[
-      {title:'原理圖設計',source:'A1-schematic-v03-bg.mp4',video:'videos/A1-schematic-v03-bg.mp4',pptKey:'clock',outline:0,target:[480,835],lookAt:[530,520]},
-      {title:'PCB Layout',source:'A2-pcb-layout-v01-bg.mp4',video:'videos/A2-pcb-layout-v01-bg.mp4',pptKey:'clocktwo',outline:3,target:[880,715],lookAt:[955,565]},
-      {title:'Library 管理',source:'A3-library-v07-bg.mp4',video:'videos/A3-library-v07-bg.mp4',pptKey:'clockthree',outline:1,target:[1065,750],lookAt:[1220,535]},
+      {title:'原理圖設計',source:'A1-schematic-v03-en.mp4',video:'videos/A1-schematic-v03-en.mp4',pptKey:'clock',outline:0,target:[480,835],lookAt:[530,520]},
+      {title:'PCB Layout',source:'A2-pcb-layout-v01-en.mp4',video:'videos/A2-pcb-layout-v01-en.mp4',pptKey:'clocktwo',outline:3,target:[880,715],lookAt:[955,565]},
+      {title:'Library 管理',source:'A3-library-v07-en.mp4',video:'videos/A3-library-v07-en.mp4',pptKey:'clockthree',outline:1,target:[1065,750],lookAt:[1220,535]},
     ],
     title:'從電路構想到 PCB 設計',
     lead:'先確認電路想法，再把原理圖、元件與佈線規則接起來。讓第一塊 PCB，有清楚的設計起點。',
@@ -26,8 +26,9 @@ window.IslandRoomTopics = {
   workshop: {
     name:'製作工坊', en:'PCB MANUFACTURING READINESS', image:'assets/room-workshop-chair-clean-v78.png', theme:'copper',
     pptLinks:[
-      {title:'製作簡報 1',source:'製作_1.pptx',pptKey:'workshop',outline:3,target:[370,780],lookAt:[365,500]},
-      {title:'製作簡報 2',source:'製作_2.pptx',pptKey:'workshoptwo',outline:2,target:[760,780],lookAt:[840,425]},
+      {title:'PCB 組裝與測試製程準備',source:'D1-assembly-test-preparation-v02-en.mp4',video:'videos/D1-assembly-test-preparation-v02-en.mp4',pptKey:'workshop',outline:3,target:[370,780],lookAt:[365,500]},
+      {title:'PCB 製造資料檢查與編輯',source:'D2-cam-data-v03-en.mp4',video:'videos/D2-cam-data-v03-en.mp4',pptKey:'workshoptwo',outline:2,target:[760,780],lookAt:[840,425]},
+      {title:'E/E 整合（電子與機構協同設計）',source:'D3-ecad-mcad-v06-en.mp4',video:'videos/D3-ecad-mcad-v06-en.mp4',outline:1,target:[1040,880],lookAt:[1160,510]},
     ],
     title:'送板前，找出製造與組裝風險',
     lead:'設計畫得出來，也要能順利製造。把製造資料、DFM 檢查與產線準備串成同一段交接流程。',
@@ -47,9 +48,9 @@ window.IslandRoomTopics = {
   library: {
     name:'驗証工作室', en:'PCB VALIDATION STUDIO', image:'assets/room-verification-chair-clean-v42.png', theme:'green',
     pptLinks:[
-      {title:'原理圖驗証',source:'B1-schematic-validation-v10-bg.mp4',video:'videos/B1-schematic-validation-v10-bg.mp4',pptKey:'library',outline:0,target:[650,775],lookAt:[610,405]},
-      {title:'PCB Layout 驗証',source:'B2-layout-validation-v04-bg.mp4',video:'videos/B2-layout-validation-v04-bg.mp4',pptKey:'librarytwo',outline:2,target:[805,690],lookAt:[870,405]},
-      {title:'製造可行性驗証',source:'B3-manufacturability-v02-bg.mp4',video:'videos/B3-manufacturability-v02-bg.mp4',pptKey:'librarythree',outline:1,target:[890,735],lookAt:[1160,470]},
+      {title:'原理圖驗証',source:'B1-schematic-validation-v10-en.mp4',video:'videos/B1-schematic-validation-v10-en.mp4',pptKey:'library',outline:0,target:[650,775],lookAt:[610,405]},
+      {title:'PCB Layout 驗証',source:'B2-layout-validation-v06-en.mp4',video:'videos/B2-layout-validation-v06-en.mp4',pptKey:'librarytwo',outline:2,target:[805,690],lookAt:[870,405]},
+      {title:'製造可行性驗証',source:'B3-manufacturability-v02-en.mp4',video:'videos/B3-manufacturability-v02-en.mp4',pptKey:'librarythree',outline:1,target:[890,735],lookAt:[1160,470]},
     ],
     title:'PCB 規則檢查與量測比對',
     lead:'從「畫面上接好了」走到「檢查項目有依據」。將設計規則、電氣風險與實板觀察放在一起看。',
@@ -70,8 +71,8 @@ window.IslandRoomTopics = {
     name:'模擬實驗室', en:'PCB SIGNAL & POWER INTEGRITY', image:'assets/room-simulation-chair-clean-v42.png', theme:'teal',
     pptLinks:[
       {title:'高速電子設計與智慧驗證整合方案',source:'C2_高速電子設計與智慧驗證整合方案_V1.pptx',pptKey:'labtwo',outline:1,target:[420,660],lookAt:[420,440]},
-      {title:'訊號完整性模擬',source:'C1-signal-integrity-v03-bg.mp4',video:'videos/C1-signal-integrity-v03-bg.mp4',pptKey:'lab',outline:0,target:[770,830],lookAt:[770,550]},
-      {title:'電路板熱模擬',source:'C3-board-thermal-v01-bg.mp4',video:'videos/C3-board-thermal-v01-bg.mp4',pptKey:'labthree',outline:2,target:[1135,700],lookAt:[1160,440]},
+      {title:'訊號與電源完整性模擬',source:'C1-signal-integrity-v03-en.mp4',video:'videos/C1-signal-integrity-v03-en.mp4',pptKey:'lab',outline:0,target:[770,830],lookAt:[770,550]},
+      {title:'電路板熱模擬',source:'C3-board-thermal-v01-en.mp4',video:'videos/C3-board-thermal-v01-en.mp4',pptKey:'labthree',outline:2,target:[1135,700],lookAt:[1160,440]},
     ],
     title:'高速 PCB 的訊號與電源品質',
     lead:'先在電腦裡看看訊號怎麼走、電源怎麼送，再決定 PCB 該怎麼改。從問題位置找出可討論的改善方向。',
