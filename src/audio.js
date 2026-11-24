@@ -5,7 +5,7 @@
   const frequency = midi => 440 * 2 ** ((midi-69)/12);
   class IslandAudio {
     constructor({onChange,onError} = {}) {
-      this.onChange=onChange; this.onError=onError; this.enabled=true; this.volume=.35; this.context=null;this.playbackRequest=0;
+      this.onChange=onChange; this.onError=onError; this.enabled=true; this.videoActive=false; this.volume=.35; this.context=null;this.playbackRequest=0;
       this.timer=null; this.suspendTimer=null; this.nodes=new Set(); this.birdTimes=new Map();
       this.step=0; this.nextStepTime=0; this.nextBirdSound=0;
       this.notesScheduled=0; this.chirpsPlayed=0; this.lastChirp=null;
@@ -53,7 +53,7 @@
         await this.context.resume();
         if(!this.enabled||document.hidden){this.context.suspend().catch(()=>{});return;}
         if(request!==this.playbackRequest||this.context.state!=='running')return;
-        const t=this.context.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(this.volume*.75,t,.2);
+        const t=this.context.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(this.videoActive?0:this.volume*.75,t,.2);
         this.nextStepTime=t+.12;this.nextRoomSound=t+2+Math.random()*3;this.startTimer();
         if(this.roomKey)this.roomEvent('enter',this.roomKey);
       }catch(error){
@@ -61,7 +61,11 @@
         this.enabled=false;this.stopTimer();this.onChange?.(false);this.onError?.(error.message);
       }
     }
-    setVolume(value){this.volume=Math.max(0,Math.min(1,value));if(this.context&&this.enabled)this.master.gain.setTargetAtTime(this.volume*.75,this.context.currentTime,.08);}
+    setVideoActive(active){
+      this.videoActive=Boolean(active);
+      if(this.context){const t=this.context.currentTime;this.master.gain.cancelScheduledValues(t);this.master.gain.setTargetAtTime(this.enabled&&!this.videoActive?this.volume*.75:0,t,.025);}
+    }
+    setVolume(value){this.volume=Math.max(0,Math.min(1,value));if(this.context&&this.enabled)this.master.gain.setTargetAtTime(this.videoActive?0:this.volume*.75,this.context.currentTime,.08);}
     stopTimer(){clearInterval(this.timer);this.timer=null;}
     startTimer(){this.stopTimer();this.schedule();this.timer=setInterval(()=>this.schedule(),120);}
     async visibility(){
@@ -162,7 +166,7 @@
       }
       this.chirpsPlayed++;this.lastChirp={birdId:bird.id,state:bird.state,mode:bird.mode};
     }
-    snapshot(){return{enabled:this.enabled,volume:this.volume,contextState:this.context?.state||'uninitialized',musicNotesScheduled:this.notesScheduled,chirpsPlayed:this.chirpsPlayed,lastChirp:this.lastChirp,activeVoices:this.nodes.size,roomKey:this.roomKey,roomEffectsPlayed:this.roomEffectsPlayed,lastRoomEffect:this.lastRoomEffect,roomEventCounts:{...this.roomEventCounts},activeRoomVoices:this.roomNodes.size,catVoicesPlayed:this.catVoicesPlayed,lastCatVoice:this.lastCatVoice,activeCatVoices:this.catNodes.size};}
+    snapshot(){return{enabled:this.enabled,videoActive:this.videoActive,backgroundGain:this.master?.gain.value??0,volume:this.volume,contextState:this.context?.state||'uninitialized',musicNotesScheduled:this.notesScheduled,chirpsPlayed:this.chirpsPlayed,lastChirp:this.lastChirp,activeVoices:this.nodes.size,roomKey:this.roomKey,roomEffectsPlayed:this.roomEffectsPlayed,lastRoomEffect:this.lastRoomEffect,roomEventCounts:{...this.roomEventCounts},activeRoomVoices:this.roomNodes.size,catVoicesPlayed:this.catVoicesPlayed,lastCatVoice:this.lastCatVoice,activeCatVoices:this.catNodes.size};}
   }
   window.IslandAudio=IslandAudio;
 })();

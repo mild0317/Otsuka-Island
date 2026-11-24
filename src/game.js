@@ -44,6 +44,7 @@
   let pendingRoom = null, entry = null;
   const roomExperience = new IslandRooms({
     onOpen(key){islandAudio.enterRoom(key);warmCoworkers(key);},
+    onVideoChange(active){islandAudio.setVideoActive(active);},
     onSound(type,key,index){islandAudio.roomEvent(type,key,index);},
     onSoundToggle(){islandAudio.setEnabled(!islandAudio.enabled);},
     onClose(key) {

@@ -6,7 +6,8 @@
       const match=/^[^_]+_\d+_(.+)\.pptx$/i.exec(source);
       return match?.[1].trim()||fallback;
     }
-    constructor(container) {
+    constructor(container,{onVideoChange}={}) {
+      this.onVideoChange=onVideoChange;
       this.container=container;this.request=0;this.frame=0;this.cache=new Map();this.cacheKey=null;
       this.ahead=matchMedia('(max-width:760px)').matches?2:3;
       container.innerHTML='<div class="ppt-stage"><img class="ppt-slide" alt="" hidden><p class="ppt-status" role="status"></p></div><nav class="ppt-controls" aria-label="簡報翻頁"><button class="ppt-prev" aria-label="上一頁">←</button><span class="ppt-count" aria-live="polite"></span><button class="ppt-next" aria-label="下一頁">→</button></nav>';
@@ -22,13 +23,13 @@
     status(text){this.container.querySelector('.ppt-status').textContent=text;}
     stopVideo(){
       if(!this.video)return;
-      this.video.pause();this.video.removeAttribute('src');this.video.load();this.video.remove();this.video=null;
+      this.video.pause();this.video.removeAttribute('src');this.video.load();this.video.remove();this.video=null;this.onVideoChange?.(false);
     }
     openVideo(source,title='影片'){
       this.stopVideo();this.request++;this.frame++;this.deck=null;this.image.hidden=true;
       this.container.querySelector('.ppt-controls').hidden=true;
       this.status('正在載入影片…');
-      const video=document.createElement('video');this.video=video;
+      const video=document.createElement('video');this.video=video;this.onVideoChange?.(true);
       video.className='ppt-video';video.controls=true;video.playsInline=true;video.preload='metadata';
       video.setAttribute('playsinline','');video.setAttribute('aria-label',title);
       video.addEventListener('loadedmetadata',()=>{if(this.video===video)this.status('');});
